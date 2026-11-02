@@ -1,0 +1,23 @@
+# API y orquestación
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+
+# Persistencia: PostgreSQL (§5) con migraciones Alembic (§14, §17)
+sqlalchemy>=2.0
+psycopg2-binary
+alembic
+
+# Motor de ingesta y preprocesamiento CSV
+pandas
+numpy
+scikit-learn
+joblib
+
+# Motor de entrenamiento (worker)
+tensorflow
+
+# Pruebas
+pytest
+httpx

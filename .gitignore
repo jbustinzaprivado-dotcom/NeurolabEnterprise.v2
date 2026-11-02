@@ -1,0 +1,24 @@
+# Entornos y dependencias
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Configuración local
+.env
+
+# Datos generados en ejecución (se conservan las carpetas con .gitkeep)
+data/*.db
+data/*.db-*
+data/logs/
+data/uploads/*
+!data/uploads/.gitkeep
+data/models/*
+!data/models/.gitkeep
+
+# Build del frontend
+apps/web/dist/
+
+# Metadatos de Resilio Sync
+.sync/
