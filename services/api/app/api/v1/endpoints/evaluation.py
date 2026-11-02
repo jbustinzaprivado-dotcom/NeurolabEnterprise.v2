@@ -61,7 +61,13 @@ def evaluation_run(db: Session, job: TrainingJob) -> dict | None:
         }
         for epoch, values in sorted(by_epoch.items())
     ]
-    best = min(history, key=lambda point: point["valLoss"])["epoch"] if history else job.epoch
+    # Época cuyos pesos quedaron en el modelo registrado: la última, salvo que la parada temprana
+    # se activara (restore_best_weights recupera la de menor val_loss). No basta con el mínimo de
+    # val_loss: sin parada temprana el worker guarda los pesos de la última época.
+    params_ = job.params_json
+    stopped_early = bool(params_.get("earlyStoppingPatience")) and job.epoch < params_["epochs"]
+    best = (min(history, key=lambda point: point["valLoss"])["epoch"]
+            if history and stopped_early else job.epoch)
     classes = evaluation["confusionMatrix"]["classes"] if task == "classification" else []
     model = db.scalar(select(ModelVersion).where(ModelVersion.job_id == job.id))
     params = job.params_json

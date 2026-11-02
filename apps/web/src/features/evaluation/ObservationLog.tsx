@@ -156,7 +156,7 @@ export function ObservationLog({
         ) : null}
         <div className="ev-form__foot">
           <p className="ev-form__hint">
-            Se guardan autor y fecha. Los registros no se eliminan desde la demo.
+            Se guardan autor y fecha. Los registros no se pueden editar ni eliminar: quedan como trazabilidad de la evaluación.
           </p>
           <button type="submit" className="btn btn--primary btn--sm">
             <Icon name="plus" size={14} />

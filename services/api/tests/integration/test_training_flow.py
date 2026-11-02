@@ -48,6 +48,9 @@ def test_end_to_end_training_registers_model(client, iris):
     matrix = evaluation["confusionMatrix"]["classes"]
     assert [row["label"] for row in matrix] == ["setosa", "versicolor", "virginica"]
     assert sum(row["total"] for row in matrix) == evaluation["testRows"]
+    # Sin parada temprana, el modelo registrado conserva los pesos de la última época.
+    run = next(item for item in client.get(f"{API}/evaluations", headers=ANA).json() if item["jobId"] == job_id)
+    assert run["bestEpoch"] == 15
 
     with client.stream("GET", f"{API}/training-jobs/{job_id}/events", headers=ANA) as stream:
         events = [line.split(": ", 1)[1] for line in stream.iter_lines() if line.startswith("event:")]
