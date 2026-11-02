@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useLayoutMode } from '@/hooks/useLayoutMode';
 import { PlatformDataProvider, usePlatformData } from '@/app/providers';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider, useSession } from '@/app/session';
+import { queryClient } from '@/lib/api/queryClient';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 
@@ -73,14 +75,16 @@ function ShellFrame() {
   );
 }
 
-/** Sesión primero (identidad y límites) y luego los datos de plataforma que consumen
-    la barra lateral, el encabezado y cada módulo. */
+/** Caché de consultas, luego la sesión (identidad y límites) y los datos de plataforma
+    que consumen la barra lateral, el encabezado y cada módulo. */
 export function AppShell() {
   return (
-    <SessionProvider>
-      <PlatformDataProvider>
-        <ShellFrame />
-      </PlatformDataProvider>
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        <PlatformDataProvider>
+          <ShellFrame />
+        </PlatformDataProvider>
+      </SessionProvider>
+    </QueryClientProvider>
   );
 }

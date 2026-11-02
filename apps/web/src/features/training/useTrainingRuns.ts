@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Actor, TrainingJob } from '@/types/domain';
 import { usePlatformData } from '@/app/providers';
 import { useSession } from '@/app/session';
+import { invalidateTraining, queryKeys } from '@/lib/api/queryClient';
 import { trainingApi } from '@/lib/api/resources';
 import type { ApiTrainingJob } from '@/lib/api/resources';
 import { useCatalog } from '@/lib/api/useCatalog';
@@ -72,47 +74,30 @@ export function useTrainingRuns(): TrainingModel {
   const { actor, config } = useSession();
   const { snapshot, refresh: refreshPlatform } = usePlatformData();
   const catalog = useCatalog();
-  const [jobs, setJobs] = useState<ApiTrainingJob[]>([]);
-  const [status, setStatus] = useState<TrainingModel['status']>('loading');
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [pendingCancellation, setPendingCancellation] = useState<string | null>(null);
-  const hasActive = useRef(false);
-
-  const load = useCallback(async () => {
-    try {
-      const next = (await trainingApi.list()).map(adapt);
-      setJobs(next);
-      hasActive.current = next.some((job) => isActive(job.status));
-      setError(null);
-      setStatus('ready');
-      setLastUpdated(new Date().toISOString());
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'No fue posible leer la cola.');
-      setStatus((current) => (current === 'ready' ? 'ready' : 'error'));
-    }
-  }, []);
 
   /* Sondeo adaptativo: rápido con trabajos activos, lento en reposo, pausado en segundo plano. */
-  useEffect(() => {
-    let timer: number | undefined;
-    let stopped = false;
-    const tick = async () => {
-      if (document.visibilityState === 'visible') await load();
-      if (!stopped) timer = window.setTimeout(tick, hasActive.current ? ACTIVE_POLL_MS : IDLE_POLL_MS);
-    };
-    void tick();
-    return () => {
-      stopped = true;
-      window.clearTimeout(timer);
-    };
-  }, [load]);
+  const query = useQuery({
+    queryKey: queryKeys.trainingJobs,
+    queryFn: async () => (await trainingApi.list()).map(adapt),
+    refetchInterval: (current) =>
+      current.state.data?.some((job) => isActive(job.status)) ? ACTIVE_POLL_MS : IDLE_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+  const jobs = useMemo(() => query.data ?? [], [query.data]);
+  const status: TrainingModel['status'] = query.data ? 'ready' : query.isError ? 'error' : 'loading';
+  const error = query.error instanceof Error ? query.error.message : null;
+  const lastUpdated = query.dataUpdatedAt ? new Date(query.dataUpdatedAt).toISOString() : null;
 
+  /** Tras cada acción se invalida la caché: cola, panel, evaluación y registro se refrescan juntos. */
+  const load = useCallback(() => invalidateTraining(), []);
+
+  const reloadCatalog = catalog.reload;
   const refresh = useCallback(() => {
     void load();
-    void catalog.reload();
+    void reloadCatalog();
     refreshPlatform();
-  }, [load, catalog, refreshPlatform]);
+  }, [load, reloadCatalog, refreshPlatform]);
 
   const ordered = useMemo<TrainingJob[]>(
     () =>

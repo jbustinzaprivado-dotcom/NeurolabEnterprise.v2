@@ -16,7 +16,7 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Almacenamiento de objetos (§5) | Carpetas `data/uploads` y `data/models` | Pendiente |
 | Proveedor de identidad seguro (§11) | Tokens HMAC propios; acceso sin token solo en desarrollo | Pendiente |
 | Límites de tasa y retención (§11) | Cuotas por usuario y proyecto; retención guardada sin aplicar | Pendiente |
-| TanStack Query (§5) | Hooks propios en `apps/web/src/lib/api` | Pendiente |
+| TanStack Query (§5) | Caché compartida en `apps/web/src/lib/api/queryClient.ts`; las mutaciones invalidan las claves afectadas | Cumple |
 | Docker, CI/CD, logs, respaldos (§5, §11, §14) | No implementado | Pendiente |
 
 Donde el documento no especifica: la cola de trabajos usa la propia tabla `training_jobs` (el worker reclama con UPDATE condicional) y los datasets admitidos son CSV.

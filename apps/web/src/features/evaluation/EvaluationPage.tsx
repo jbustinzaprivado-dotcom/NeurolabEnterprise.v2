@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EvaluationMetric, EvaluationRun, Observation, ObservationDraft, ObservationKind, RunTone } from '@/types/evaluation';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { evaluationApi } from '@/lib/api/resources';
 import { familyMeta } from '@/lib/nav';
 import { formatDateTime, formatDuration, formatLoss, formatNumber, formatRate } from '@/lib/format';
@@ -49,33 +51,40 @@ function Delta({
 }
 
 export function EvaluationPage() {
-  const [runs, setRuns] = useState<EvaluationRun[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [runId, setRunId] = useState('');
   const [metric, setMetric] = useState<EvaluationMetric>('loss');
   const [normalized, setNormalized] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
-  const [observations, setObservations] = useState<Observation[]>([]);
   const [observationFilter, setObservationFilter] = useState<ObservationKind | 'ALL'>('ALL');
   const [notice, setNotice] = useState<Notice | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   /* Solo ejecuciones COMPLETED de clasificación: las evaluó el worker sobre la partición de prueba. */
-  const load = useCallback(async () => {
-    try {
-      const [apiRuns, apiObservations] = await Promise.all([evaluationApi.runs(), evaluationApi.observations()]);
-      setRuns(apiRuns.map((run, index) => ({ ...run, tone: TONES[index % TONES.length] })));
-      setObservations(apiObservations);
-      setStatus('ready');
-    } catch (caught) {
-      setStatus('error');
-      setNotice({ tone: 'danger', text: caught instanceof Error ? caught.message : 'No fue posible leer las evaluaciones.' });
-    }
-  }, []);
+  const runsQuery = useQuery({
+    queryKey: queryKeys.evaluations,
+    queryFn: async (): Promise<EvaluationRun[]> =>
+      (await evaluationApi.runs()).map((run, index) => ({ ...run, tone: TONES[index % TONES.length] })),
+  });
+  const observationsQuery = useQuery({ queryKey: queryKeys.observations, queryFn: () => evaluationApi.observations() });
+  const runs = useMemo(() => runsQuery.data ?? [], [runsQuery.data]);
+  const observations = observationsQuery.data ?? [];
+  const status = runsQuery.data ? 'ready' : runsQuery.isError ? 'error' : 'loading';
+  const setObservations = (update: (items: Observation[]) => Observation[]) =>
+    queryClient.setQueryData<Observation[]>(queryKeys.observations, (items) => update(items ?? []));
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const failed = runsQuery.error ?? observationsQuery.error;
+    if (failed) setNotice({ tone: 'danger', text: failed instanceof Error ? failed.message : 'No fue posible leer las evaluaciones.' });
+  }, [runsQuery.error, observationsQuery.error]);
+
+  const load = useCallback(
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.evaluations }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.observations }),
+      ]),
+    [],
+  );
 
   const current = runs.find((run) => run.id === runId) ?? runs[0] ?? null;
   const currentIndex = current ? runs.findIndex((run) => run.id === current.id) : -1;

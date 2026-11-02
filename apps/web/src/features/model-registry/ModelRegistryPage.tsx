@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/app/session';
+import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { modelsApi, projectsApi } from '@/lib/api/resources';
 import type { ApiModelVersion, ModelStatus, ProjectView } from '@/lib/api/resources';
 import { formatDateTime, formatLoss, formatRate, formatRelativeTime } from '@/lib/format';
@@ -41,32 +43,31 @@ interface Notice {
 
 export function ModelRegistryPage() {
   const { actor, users } = useSession();
-  const [rows, setRows] = useState<ModelRow[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready'>('loading');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ModelStatus | 'ALL'>('ALL');
   const [note, setNote] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  const load = useCallback(async () => {
-    try {
+  const query = useQuery({
+    queryKey: queryKeys.models,
+    queryFn: async (): Promise<ModelRow[]> => {
       const projects = await projectsApi.list();
       const lists = await Promise.all(projects.map((project) => modelsApi.listForProject(project.id)));
-      setRows(
-        lists
-          .flatMap((models, index) => models.map((model) => ({ ...model, project: projects[index] })))
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      );
-    } catch (caught) {
-      setNotice({ tone: 'danger', text: caught instanceof Error ? caught.message : 'No fue posible leer el registro.' });
-    } finally {
-      setStatus('ready');
-    }
-  }, []);
+      return lists
+        .flatMap((models, index) => models.map((model) => ({ ...model, project: projects[index] })))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+  });
+  const rows = useMemo(() => query.data ?? [], [query.data]);
+  const status = query.isPending ? 'loading' : 'ready';
+  const setRows = (update: (current: ModelRow[]) => ModelRow[]) =>
+    queryClient.setQueryData<ModelRow[]>(queryKeys.models, (current) => update(current ?? []));
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (query.error) setNotice({ tone: 'danger', text: query.error instanceof Error ? query.error.message : 'No fue posible leer el registro.' });
+  }, [query.error]);
+
+  const load = useCallback(() => queryClient.invalidateQueries({ queryKey: queryKeys.models }), []);
 
   const visible = useMemo(() => rows.filter((row) => filter === 'ALL' || row.status === filter), [rows, filter]);
   const selected = rows.find((row) => row.id === selectedId) ?? visible[0] ?? null;
@@ -84,6 +85,7 @@ export function ModelRegistryPage() {
     try {
       const updated = await modelsApi.setStatus(row.id, to, note.trim());
       setRows((current) => current.map((item) => (item.id === row.id ? { ...updated, project: row.project } : item)));
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
       setNote('');
       setNotice({ tone: 'success', text: `${row.name} ${row.label} pasa a ${STATUS_META[to].label.toLowerCase()}.` });
     } catch (caught) {

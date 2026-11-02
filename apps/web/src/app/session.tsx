@@ -1,8 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Actor } from '@/types/domain';
 import type { DirectoryUser } from '@/types/project';
 import { hasAccessToken, setAccessToken } from '@/lib/api/client';
+import { queryKeys } from '@/lib/api/queryClient';
 import { sessionApi } from '@/lib/api/resources';
 import type { ApiUser, ClientConfig } from '@/lib/api/resources';
 import { Icon } from '@/components/ui/Icon';
@@ -28,24 +30,16 @@ function toActor(user: ApiUser): Actor {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<{ actor: Actor; users: DirectoryUser[]; config: ClientConfig } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setError(null);
-    Promise.all([sessionApi.me(), sessionApi.directory(), sessionApi.config()])
-      .then(([me, users, config]) => {
-        if (!cancelled) setState({ actor: toActor(me), users, config });
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : 'No fue posible abrir la sesión.');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt]);
+  const query = useQuery({
+    queryKey: queryKeys.session,
+    queryFn: async () => {
+      const [me, users, config] = await Promise.all([sessionApi.me(), sessionApi.directory(), sessionApi.config()]);
+      return { actor: toActor(me), users: users as DirectoryUser[], config };
+    },
+    staleTime: 60_000,
+  });
+  const state = query.data ?? null;
+  const error = query.isError ? (query.error instanceof Error ? query.error.message : 'No fue posible abrir la sesión.') : null;
 
   /* Cambiar de identidad recarga la aplicación: ningún dato del usuario anterior sobrevive. */
   const switchUser = useCallback(async (userId: string) => {
@@ -73,7 +67,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         <p className="session-gate__hint">
           Inicia el backend con <code>run.bat</code> o <code>venv\Scripts\python.exe services\api\app\main.py</code>.
         </p>
-        <button type="button" className="btn btn--primary" onClick={() => setAttempt((n) => n + 1)}>
+        <button type="button" className="btn btn--primary" onClick={() => void query.refetch()}>
           <Icon name="refresh" size={16} />
           Reintentar
         </button>

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { EpochPoint, JobCurves, JobStatus, TrainingJob } from '@/types/domain';
 import { fetchJobCurves } from '@/lib/api/dashboard';
 import { formatLoss, formatNumber, formatRate } from '@/lib/format';
@@ -43,23 +44,16 @@ export function CurvesPanel({ jobs }: { jobs: TrainingJob[] }) {
   /* Releer cuando la época avanza mantiene la curva viva sin sondeo propio. */
   const epoch = job?.epoch ?? 0;
 
-  const [curves, setCurves] = useState<JobCurves | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!jobId) return;
-    const controller = new AbortController();
-    fetchJobCurves(jobId, controller.signal)
-      .then((next) => {
-        if (controller.signal.aborted) return;
-        setCurves(next);
-        setFailed(false);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
-      });
-    return () => controller.abort();
-  }, [jobId, epoch]);
+  /* Caché por trabajo y época: al avanzar la época se pide la curva nueva y, mientras
+     llega, se sigue mostrando la anterior. */
+  const curvesQuery = useQuery({
+    queryKey: ['curves', jobId, epoch],
+    queryFn: ({ signal }) => fetchJobCurves(jobId, signal),
+    enabled: Boolean(jobId),
+    placeholderData: keepPreviousData,
+  });
+  const curves: JobCurves | null = curvesQuery.data ?? null;
+  const failed = curvesQuery.isError;
 
   if (!job) {
     return (

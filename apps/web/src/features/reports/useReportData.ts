@@ -3,6 +3,8 @@ import type { Actor } from '@/types/domain';
 import type { ProjectRecord } from '@/types/project';
 import { useSession } from '@/app/session';
 import { dataSource, fetchJobCurves } from '@/lib/api/dashboard';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { reportsApi } from '@/lib/api/resources';
 import { useCatalog } from '@/lib/api/useCatalog';
 import { formatBytes } from '@/features/datasets/model';
@@ -110,17 +112,15 @@ export function useReportData(): ReportModel {
   const [scope, setScopeState] = useState<ReportScope>(DEFAULT_SCOPE);
   const [selected, setSelected] = useState<ReportSectionId[]>(DEFAULT_SELECTED);
   const [previewUserId, setPreviewUser] = useState<string>('self');
-  const [events, setEvents] = useState<ExportEvent[]>([]);
-
-  /* Bitácora de exportaciones: la conserva la API como evento de auditoría (M10). */
-  useEffect(() => {
-    reportsApi
-      .exports<ExportEvent>()
-      .then(setEvents)
-      .catch(() => {
-        /* Sin bitácora el informe sigue siendo válido; solo falta el historial. */
-      });
-  }, []);
+  /* Bitácora de exportaciones: la conserva la API como evento de auditoría (M10). Si no
+     llega, el informe sigue siendo válido; solo falta el historial. */
+  const exportsQuery = useQuery({ queryKey: queryKeys.reportExports, queryFn: () => reportsApi.exports<ExportEvent>() });
+  const events = useMemo(() => exportsQuery.data ?? [], [exportsQuery.data]);
+  const setEvents = useCallback(
+    (update: (current: ExportEvent[]) => ExportEvent[]) =>
+      queryClient.setQueryData<ExportEvent[]>(queryKeys.reportExports, (current) => update(current ?? [])),
+    [],
+  );
 
   /* Al llegar el catálogo, se abre el primer proyecto que el usuario puede consultar. */
   useEffect(() => {
@@ -144,7 +144,6 @@ export function useReportData(): ReportModel {
   }, [catalog.architectures, projectId]);
   const [lastEvent, setLastEvent] = useState<ExportEvent | null>(null);
   const [notice, setNotice] = useState<ReportOutcome | null>(null);
-  const [curves, setCurves] = useState<ReportSources['bestRun']>(null);
   const noticeTimer = useRef<number | null>(null);
 
   const show = useCallback((outcome: ReportOutcome | null) => {
@@ -203,22 +202,16 @@ export function useReportData(): ReportModel {
   );
   const bestJobId = bestJob?.id ?? null;
 
-  useEffect(() => {
-    if (!bestJobId) {
-      setCurves(null);
-      return;
-    }
-    const controller = new AbortController();
-    setCurves(null);
-    fetchJobCurves(bestJobId, controller.signal)
-      .then((job) => {
-        if (!controller.signal.aborted) setCurves({ jobId: job.jobId, points: job.points });
-      })
-      .catch(() => {
-        /* Una curva que no llega no invalida el informe: la sección simplemente no la muestra. */
-      });
-    return () => controller.abort();
-  }, [bestJobId]);
+  /* Una curva que no llega no invalida el informe: la sección simplemente no la muestra. */
+  const curvesQuery = useQuery({
+    queryKey: ['curves', bestJobId],
+    queryFn: async ({ signal }): Promise<ReportSources['bestRun']> => {
+      const job = await fetchJobCurves(bestJobId as string, signal);
+      return { jobId: job.jobId, points: job.points };
+    },
+    enabled: Boolean(bestJobId),
+  });
+  const curves = bestJobId ? curvesQuery.data ?? null : null;
 
   const sources = useMemo<ReportSources | null>(() => {
     if (!project) return null;

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { invalidateCatalog, queryClient, queryKeys } from '@/lib/api/queryClient';
 import type { NetworkFamily } from '@/types/domain';
 import type { ProjectDocument, ProjectMemberRole } from '@/types/project';
 import { useSession } from '@/app/session';
@@ -60,8 +62,16 @@ function errorText(caught: unknown): string {
 export function ProjectsPage() {
   const { actor, users } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [projects, setProjects] = useState<ProjectView[]>([]);
-  const [loading, setLoading] = useState(true);
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects,
+    queryFn: async () => sortByActivity(await projectsApi.list()),
+  });
+  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
+  const loading = projectsQuery.isPending;
+  const setProjects = (update: (previous: ProjectView[]) => ProjectView[]) => {
+    queryClient.setQueryData<ProjectView[]>(queryKeys.projects, (previous) => update(previous ?? []));
+    void queryClient.invalidateQueries({ queryKey: queryKeys.catalog });
+  };
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ProjectFilter>('ALL');
   const [family, setFamily] = useState<NetworkFamily | 'ALL'>('ALL');
@@ -81,19 +91,15 @@ export function ProjectsPage() {
     setSearchParams(next, { replace: true });
   };
 
+  const refetchProjects = projectsQuery.refetch;
   const reload = useCallback(async () => {
-    try {
-      setProjects(sortByActivity(await projectsApi.list()));
-    } catch (caught) {
-      setNotice({ tone: 'danger', text: errorText(caught) });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await refetchProjects();
+    await invalidateCatalog();
+  }, [refetchProjects]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    if (projectsQuery.error) setNotice({ tone: 'danger', text: errorText(projectsQuery.error) });
+  }, [projectsQuery.error]);
 
   /** Sustituye el proyecto por la versión que devolvió la API (fuente de verdad). */
   const replace = (next: ProjectView) =>

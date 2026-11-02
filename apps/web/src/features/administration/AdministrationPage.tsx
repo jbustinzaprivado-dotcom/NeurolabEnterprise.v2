@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import type {
   AdministrationSnapshot,
   AuditEvent,
@@ -50,26 +52,25 @@ type Snapshot = AdministrationSnapshot & { health: ServiceHealth[] };
 
 export function AdministrationPage() {
   const { actor } = useSession();
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [checkedAt, setCheckedAt] = useState(() => new Date().toISOString());
   const [inviteOpen, setInviteOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState<AdminDialog | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setSnapshot(await adminApi.snapshot());
-      setCheckedAt(new Date().toISOString());
-      setLoadError(null);
-    } catch (caught) {
-      setLoadError(caught instanceof Error ? caught.message : 'No fue posible abrir la consola de gobierno.');
-    }
-  }, []);
+  const query = useQuery({ queryKey: queryKeys.admin, queryFn: () => adminApi.snapshot() as Promise<Snapshot> });
+  const snapshot = query.data ?? null;
+  const loadError = query.error instanceof Error ? query.error.message : null;
+  const checkedAt = new Date(query.dataUpdatedAt || Date.now()).toISOString();
+  const setSnapshot = (next: Snapshot) => {
+    queryClient.setQueryData(queryKeys.admin, next);
+    /* Roles, límites y políticas afectan a la sesión y al resto de pantallas. */
+    void queryClient.invalidateQueries({ queryKey: queryKeys.session });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+  };
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const refetch = query.refetch;
+  const load = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   /** Toda acción la aplica la API, que devuelve la foto actualizada (incluida su auditoría). */
   const apply = async (action: () => Promise<Snapshot>, success: string, after?: () => void): Promise<boolean> => {

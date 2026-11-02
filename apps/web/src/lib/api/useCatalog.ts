@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/api/queryClient';
 import {
   architecturesApi,
   datasetsApi,
@@ -8,7 +10,7 @@ import {
 import type { ApiArchitecture, ApiDataset, DatasetView, ProjectView } from '@/lib/api/resources';
 
 /* Catálogo de trabajo del usuario: proyectos accesibles con sus datasets y arquitecturas
-   versionadas. Lo comparten M05 (datasets), M06 (lanzar entrenamientos) y M09 (informes). */
+   versionadas. Lo comparten M04, M05, M06 y M09 a través de una sola entrada de caché. */
 
 export interface Catalog {
   projects: ProjectView[];
@@ -21,44 +23,34 @@ export interface Catalog {
   reload: () => Promise<void>;
 }
 
+async function fetchCatalog() {
+  const projects = await projectsApi.list();
+  const [datasetLists, architectureLists] = await Promise.all([
+    Promise.all(projects.map((project) => datasetsApi.listForProject(project.id))),
+    Promise.all(projects.map((project) => architecturesApi.listForProject(project.id))),
+  ]);
+  return { projects, datasetRows: datasetLists.flat(), architectures: architectureLists.flat() };
+}
+
+const EMPTY = { projects: [] as ProjectView[], datasetRows: [] as ApiDataset[], architectures: [] as ApiArchitecture[] };
+
 export function useCatalog(): Catalog {
-  const [projects, setProjects] = useState<ProjectView[]>([]);
-  const [datasetRows, setDatasetRows] = useState<ApiDataset[]>([]);
-  const [architectures, setArchitectures] = useState<ApiArchitecture[]>([]);
-  const [status, setStatus] = useState<Catalog['status']>('loading');
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({ queryKey: queryKeys.catalog, queryFn: fetchCatalog });
+  const data = query.data ?? EMPTY;
+  const datasets = useMemo(() => groupDatasets(data.datasetRows), [data.datasetRows]);
 
+  const refetch = query.refetch;
   const reload = useCallback(async () => {
-    try {
-      const accessible = await projectsApi.list();
-      const [datasetLists, architectureLists] = await Promise.all([
-        Promise.all(accessible.map((project) => datasetsApi.listForProject(project.id))),
-        Promise.all(accessible.map((project) => architecturesApi.listForProject(project.id))),
-      ]);
-      setProjects(accessible);
-      setDatasetRows(datasetLists.flat());
-      setArchitectures(architectureLists.flat());
-      setError(null);
-      setStatus('ready');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'No fue posible cargar el catálogo.');
-      setStatus((current) => (current === 'ready' ? 'ready' : 'error'));
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  const datasets = useMemo(() => groupDatasets(datasetRows), [datasetRows]);
+    await refetch();
+  }, [refetch]);
 
   return {
-    projects,
+    projects: data.projects,
     datasets,
-    datasetRows,
-    architectures,
-    status,
-    error,
+    datasetRows: data.datasetRows,
+    architectures: data.architectures,
+    status: query.data ? 'ready' : query.isError ? 'error' : 'loading',
+    error: query.error instanceof Error ? query.error.message : null,
     reload,
   };
 }
