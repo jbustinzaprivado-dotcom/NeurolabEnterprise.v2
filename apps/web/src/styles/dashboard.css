@@ -383,6 +383,16 @@
   letter-spacing: 0;
 }
 
+/* Nombre de la métrica bajo su valor (registro de modelos). */
+.metric-cell__label {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
 .table td[data-numeric] {
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);

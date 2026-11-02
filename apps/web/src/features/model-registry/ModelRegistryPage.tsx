@@ -4,7 +4,7 @@ import { useSession } from '@/app/session';
 import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { modelsApi, projectsApi } from '@/lib/api/resources';
 import type { ApiModelVersion, ModelStatus, ProjectView } from '@/lib/api/resources';
-import { formatDateTime, formatLoss, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatDateTime, formatLoss, formatNumber, formatRate, formatRelativeTime } from '@/lib/format';
 import { Panel } from '@/components/ui/Panel';
 import { Chip } from '@/components/ui/Chip';
 import type { ChipProps } from '@/components/ui/Chip';
@@ -35,6 +35,30 @@ const NEXT_ACTIONS: Record<ModelStatus, Array<{ to: ModelStatus; label: string; 
 };
 
 type ModelRow = ApiModelVersion & { project: ProjectView };
+
+/* Métricas de prueba según la tarea. Clasificación: accuracy y F1 macro. Regresión: R²
+   (parte de la variación del objetivo que explica el modelo) y RMSE/MAE, que están en las
+   unidades del objetivo y se leen mejor que la pérdida MSE (unidades al cuadrado). */
+function isRegression(metrics: Record<string, number>): boolean {
+  return metrics.r2 !== undefined || metrics.rmse !== undefined;
+}
+
+function formatError(value: number): string {
+  return Math.abs(value) >= 100 ? formatNumber(value, 0) : formatNumber(value, 3);
+}
+
+function formatR2(value: number): string {
+  return formatNumber(value, 3);
+}
+
+function TestMetric({ label, value }: { label: string; value: string | null }) {
+  return (
+    <>
+      {value ?? '—'}
+      {value ? <span className="metric-cell__label">{label}</span> : null}
+    </>
+  );
+}
 
 interface Notice {
   tone: 'success' | 'info' | 'danger';
@@ -198,8 +222,8 @@ export function ModelRegistryPage() {
                       <tr>
                         <th scope="col">Modelo</th>
                         <th scope="col">Estado</th>
-                        <th scope="col">Accuracy prueba</th>
-                        <th scope="col">F1 macro</th>
+                        <th scope="col">Métrica de prueba</th>
+                        <th scope="col">Complementaria</th>
                         <th scope="col" className="is-right">
                           Registrado
                         </th>
@@ -230,12 +254,34 @@ export function ModelRegistryPage() {
                               {STATUS_META[row.status].label}
                             </Chip>
                           </td>
-                          <td data-label="Accuracy" data-numeric>
-                            {row.metrics.accuracy !== undefined ? formatRate(row.metrics.accuracy) : '—'}
-                          </td>
-                          <td data-label="F1 macro" data-numeric>
-                            {row.metrics.macroF1 !== undefined ? formatRate(row.metrics.macroF1) : '—'}
-                          </td>
+                          {isRegression(row.metrics) ? (
+                            <>
+                              <td data-label="R²" data-numeric>
+                                <TestMetric label="R²" value={row.metrics.r2 !== undefined ? formatR2(row.metrics.r2) : null} />
+                              </td>
+                              <td data-label="RMSE" data-numeric>
+                                <TestMetric
+                                  label={`RMSE · ${row.metadata.target ?? 'objetivo'}`}
+                                  value={row.metrics.rmse !== undefined ? formatError(row.metrics.rmse) : null}
+                                />
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td data-label="Accuracy" data-numeric>
+                                <TestMetric
+                                  label="accuracy"
+                                  value={row.metrics.accuracy !== undefined ? formatRate(row.metrics.accuracy) : null}
+                                />
+                              </td>
+                              <td data-label="F1 macro" data-numeric>
+                                <TestMetric
+                                  label="F1 macro"
+                                  value={row.metrics.macroF1 !== undefined ? formatRate(row.metrics.macroF1) : null}
+                                />
+                              </td>
+                            </>
+                          )}
                           <td data-col="meta" data-label="Registrado" className="is-right" data-numeric>
                             {formatRelativeTime(row.createdAt)}
                           </td>
@@ -284,10 +330,43 @@ export function ModelRegistryPage() {
                       {selected.metadata.params?.seed}
                     </dd>
                   </div>
-                  <div>
-                    <dt>Pérdida de prueba</dt>
-                    <dd>{selected.metrics.loss !== undefined ? formatLoss(selected.metrics.loss) : '—'}</dd>
-                  </div>
+                  {isRegression(selected.metrics) ? (
+                    <>
+                      <div>
+                        <dt>R² de prueba</dt>
+                        <dd>
+                          {selected.metrics.r2 !== undefined
+                            ? `${formatR2(selected.metrics.r2)} · explica el ${formatRate(Math.max(0, selected.metrics.r2))} de la variación`
+                            : '—'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>RMSE (error típico)</dt>
+                        <dd>
+                          {selected.metrics.rmse !== undefined
+                            ? `${formatError(selected.metrics.rmse)} en ${selected.metadata.target ?? 'el objetivo'}`
+                            : '—'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>MAE (error absoluto medio)</dt>
+                        <dd>
+                          {selected.metrics.mae !== undefined
+                            ? `${formatError(selected.metrics.mae)} en ${selected.metadata.target ?? 'el objetivo'}`
+                            : '—'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Pérdida de prueba (MSE)</dt>
+                        <dd>{selected.metrics.loss !== undefined ? formatError(selected.metrics.loss) : '—'}</dd>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <dt>Pérdida de prueba</dt>
+                      <dd>{selected.metrics.loss !== undefined ? formatLoss(selected.metrics.loss) : '—'}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt>Entrenó</dt>
                     <dd>{nameOf(selected.metadata.trainedBy)}</dd>
