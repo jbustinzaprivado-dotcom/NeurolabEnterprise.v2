@@ -42,6 +42,8 @@ def list_projects(
 def create_project(payload: ProjectIn, user: CurrentUser, db: DB) -> ProjectOut:
     if user.role not in PROJECT_CREATORS:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Tu rol no permite crear proyectos.")
+    if len(_clean_tags(payload.tags)) > MAX_TAGS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Un proyecto admite hasta {MAX_TAGS} etiquetas.")
     project = Project(
         name=payload.name.strip(),
         description=payload.description.strip(),
@@ -67,8 +69,13 @@ def get_project(project_id: str, user: CurrentUser, db: DB) -> ProjectOut:
 
 @router.patch("/projects/{project_id}", response_model=ProjectOut)
 def update_project(project_id: str, payload: ProjectPatch, user: CurrentUser, db: DB) -> ProjectOut:
-    project, role = require_project(db, user, project_id, "project.update")
     changes = payload.model_dump(exclude_unset=True)
+    # Las etiquetas forman parte de la documentación (M02): owner e ingenieros. El resto de
+    # la ficha (nombre, problema, familia, estado) solo la cambia el responsable.
+    action = "docs.write" if changes and set(changes) == {"tags"} else "project.update"
+    project, role = require_project(db, user, project_id, action)
+    if "tags" in changes and len(_clean_tags(changes["tags"])) > MAX_TAGS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Un proyecto admite hasta {MAX_TAGS} etiquetas.")
     for field, value in changes.items():
         if field == "tags":
             value = _clean_tags(value)
@@ -117,6 +124,9 @@ def remove_member(project_id: str, user_id: str, user: CurrentUser, db: DB) -> R
 
 def _owner_count(project: Project) -> int:
     return sum(1 for member in project.members if member.role == "owner")
+
+
+MAX_TAGS = 8
 
 
 def _clean_tags(tags: list[str]) -> list[str]:

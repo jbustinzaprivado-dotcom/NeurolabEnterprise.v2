@@ -59,5 +59,13 @@ def test_create_project_and_manage_members(client):
     # El único responsable no puede quedarse fuera.
     assert client.delete(f"{API}/projects/{pid}/members/USR-212", headers=LUIS).status_code == 409
 
+    # Etiquetas (documentación): las edita también el ingeniero; el resto de la ficha, no.
+    tagged = client.patch(f"{API}/projects/{pid}", headers=ANA, json={"tags": ["Banca", "tabular", "riesgo"]})
+    assert tagged.status_code == 200 and tagged.json()["tags"] == ["Banca", "tabular", "riesgo"]
+    assert client.patch(f"{API}/projects/{pid}", headers=ANA, json={"name": "Otro nombre"}).status_code == 403
+    assert client.patch(f"{API}/projects/{pid}", headers=ANA, json={"tags": ["a"], "name": "Otro"}).status_code == 403
+    too_many = [f"etiqueta-{n}" for n in range(9)]
+    assert client.patch(f"{API}/projects/{pid}", headers=LUIS, json={"tags": too_many}).status_code == 422
+
     audit = client.get(f"{API}/projects/{pid}/audit-events", headers=LUIS).json()
     assert {"project.create", "members.change"} <= {event["action"] for event in audit}
