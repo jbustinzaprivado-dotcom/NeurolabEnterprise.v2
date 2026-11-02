@@ -28,6 +28,8 @@ interface DatasetDetailProps {
   canDelete: boolean;
   onNewVersion: (dataset: DatasetRecord) => void;
   onDelete: (dataset: DatasetRecord) => void;
+  /** Límite de carga vigente (M10), el mismo que aplica la API. */
+  maxUploadBytes: number;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -37,7 +39,7 @@ const KIND_LABEL: Record<string, string> = {
   categorical: 'categórica',
 };
 
-export function DatasetDetail({ dataset, canWrite, canDelete, onNewVersion, onDelete }: DatasetDetailProps) {
+export function DatasetDetail({ dataset, canWrite, canDelete, onNewVersion, onDelete, maxUploadBytes }: DatasetDetailProps) {
   if (!dataset) {
     return (
       <Panel title="Ficha del dataset" icon="dataset" subtitle="Selecciona un registro del catálogo.">
@@ -52,7 +54,7 @@ export function DatasetDetail({ dataset, canWrite, canDelete, onNewVersion, onDe
 
   const privacy = datasetPrivacyMeta[dataset.privacy];
   const access = datasetAccessMeta[dataset.access];
-  const checks = auditDataset(dataset);
+  const checks = auditDataset(dataset, maxUploadBytes);
   const failed = checks.filter((check) => !check.ok).length;
 
   return (

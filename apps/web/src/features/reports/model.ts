@@ -331,6 +331,8 @@ export interface ReportSources {
   bestRun: { jobId: string; points: EpochPoint[] } | null;
   dataSource: 'demo' | 'api';
   storage: { label: string; detail: string };
+  /** Límite de carga vigente (M10) para auditar el tamaño de cada dataset. */
+  uploadLimitBytes?: number;
 }
 
 export interface ReportDocument {
@@ -993,7 +995,7 @@ export function reportChecks(
     datasets.forEach((dataset) => {
       const split = validateSplit(dataset.split);
       const usable = dataset.status === 'READY';
-      const audit = canReport(access, 'ver-tecnico') ? auditDataset(dataset) : [];
+      const audit = canReport(access, 'ver-tecnico') ? auditDataset(dataset, sources.uploadLimitBytes) : [];
       const failing = audit.filter((item) => !item.ok);
       const level: ReportCheck['level'] = !split.ok
         ? 'error'

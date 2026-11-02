@@ -101,7 +101,7 @@ export interface ReportModel {
 export function useReportData(): ReportModel {
   const run = useTrainingRuns();
   const actor = run.actor;
-  const { users: directoryUsers } = useSession();
+  const { users: directoryUsers, config } = useSession();
   const catalog = useCatalog();
 
   const projects = catalog.projects as ProjectRecord[];
@@ -226,8 +226,9 @@ export function useReportData(): ReportModel {
       bestRun: curves && curves.jobId === bestJobId ? curves : null,
       dataSource,
       storage,
+      uploadLimitBytes: config.maxUploadMb * 1024 ** 2,
     };
-  }, [bestJobId, curves, datasets, directoryUsers, draft, events, project, run.jobs, run.records, storage]);
+  }, [bestJobId, config.maxUploadMb, curves, datasets, directoryUsers, draft, events, project, run.jobs, run.records, storage]);
 
   const built = useMemo(
     () =>

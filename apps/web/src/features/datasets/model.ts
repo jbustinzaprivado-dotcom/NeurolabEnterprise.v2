@@ -180,7 +180,8 @@ export interface DatasetCheck {
 }
 
 /** Auditoría mostrada en la ficha; el backend repite estas comprobaciones. */
-export function auditDataset(dataset: DatasetRecord): DatasetCheck[] {
+/** `maxBytes`: límite de carga vigente en M10 (el que aplica la API); por defecto, el del formato. */
+export function auditDataset(dataset: DatasetRecord, maxBytes?: number): DatasetCheck[] {
   const meta = datasetFormatMeta[dataset.format];
   const split = validateSplit(dataset.split);
   const quarantined = dataset.status === 'QUARANTINED';
@@ -194,9 +195,9 @@ export function auditDataset(dataset: DatasetRecord): DatasetCheck[] {
     },
     {
       id: 'size',
-      ok: dataset.sizeBytes <= meta.maxBytes,
+      ok: dataset.sizeBytes <= (maxBytes ?? meta.maxBytes),
       label: 'Tamaño dentro del límite',
-      detail: `${formatBytes(dataset.sizeBytes)} de ${formatBytes(meta.maxBytes)}`,
+      detail: `${formatBytes(dataset.sizeBytes)} de ${formatBytes(maxBytes ?? meta.maxBytes)}`,
     },
     {
       id: 'split',

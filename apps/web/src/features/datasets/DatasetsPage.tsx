@@ -15,7 +15,6 @@ import { DatasetFormDialog, type DatasetFormPayload } from '@/features/datasets/
 import { DeleteDatasetDialog } from '@/features/datasets/DeleteDatasetDialog';
 
 const GB = 1024 ** 3;
-const VERSION_LIMIT = 60;
 
 type DialogState =
   | { kind: 'create' }
@@ -159,7 +158,6 @@ export function DatasetsPage() {
   };
 
   const storageRatio = summary.totalBytes / storageLimitBytes;
-  const versionsRatio = summary.totalVersions / VERSION_LIMIT;
   const selectedPermissions = selected ? permissionsOf(selected.projectId) : [];
 
   return (
@@ -332,6 +330,7 @@ export function DatasetsPage() {
           <div className="ds-col">
             <DatasetDetail
               dataset={selected}
+              maxUploadBytes={maxUploadBytes}
               canWrite={selectedPermissions.includes('dataset.write')}
               canDelete={selectedPermissions.includes('dataset.delete')}
               onNewVersion={() => selected && setDialog({ kind: 'version', dataset: selected })}
@@ -350,15 +349,10 @@ export function DatasetsPage() {
                   ratio={storageRatio}
                   tone={toneForUsage(storageRatio)}
                 />
-                <Meter
-                  label="Versiones conservadas"
-                  detail={`${summary.totalVersions} de ${VERSION_LIMIT}`}
-                  ratio={versionsRatio}
-                  tone={toneForUsage(versionsRatio)}
-                />
               </div>
               <p className="panel__note">
-                Un dataset eliminado conserva su archivo si algún entrenamiento lo usó, para que el modelo
+                Se conservan las {summary.totalVersions} versiones publicadas: ninguna se sobrescribe ni se
+                borra por cuota (RN-04). Un dataset eliminado conserva su archivo si algún entrenamiento lo usó, para que el modelo
                 resultante siga siendo trazable. Los retenidos ({counts.QUARANTINED}) no pueden usarse en
                 entrenamientos.
               </p>
