@@ -71,7 +71,10 @@ export function DatasetFormDialog({
   onSubmit,
 }: DatasetFormDialogProps) {
   const [name, setName] = useState(dataset?.name ?? '');
-  const [projectId, setProjectId] = useState(dataset?.projectId ?? projects[0]?.id ?? '');
+  // Por defecto, el primer proyecto no archivado: los archivados se conservan para trazabilidad.
+  const [projectId, setProjectId] = useState(
+    dataset?.projectId ?? projects.find((project) => project.status !== 'ARCHIVED')?.id ?? projects[0]?.id ?? '',
+  );
   const [format, setFormat] = useState<DatasetFormat>(dataset?.format ?? 'CSV');
   const [license, setLicense] = useState<string>(dataset?.license ?? DATASET_LICENSES[0]);
   const [privacy, setPrivacy] = useState<DatasetPrivacy>(dataset?.privacy ?? 'INTERNAL');
@@ -221,6 +224,7 @@ export function DatasetFormDialog({
                     {projects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name} · {project.id}
+                        {project.status === 'ARCHIVED' ? ' · archivado' : ''}
                       </option>
                     ))}
                   </select>

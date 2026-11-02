@@ -55,7 +55,7 @@ export function DatasetsPage() {
     () =>
       projects
         .filter((project) => project.permissions.includes('dataset.write'))
-        .map((project) => ({ id: project.id, name: project.name })),
+        .map((project) => ({ id: project.id, name: project.name, status: project.status })),
     [projects],
   );
   const permissionsOf = (projectId: string) => projects.find((project) => project.id === projectId)?.permissions ?? [];

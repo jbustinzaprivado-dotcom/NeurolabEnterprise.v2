@@ -52,4 +52,6 @@ export interface DatasetRecord {
 export interface DatasetProject {
   id: string;
   name: string;
+  /** DRAFT · ACTIVE · ARCHIVED: el formulario no propone un archivado por defecto. */
+  status?: string;
 }
