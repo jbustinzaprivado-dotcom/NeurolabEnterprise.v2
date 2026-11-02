@@ -15,7 +15,9 @@ import { computeArchitecture, formatParams, formatShape } from '@/features/archi
 import { auditDataset, formatBytes, validateSplit } from '@/features/datasets/model';
 import { PRIORITY_LABEL, isActive, recordFor, versionFor } from '@/features/training/model';
 import { familyMeta, roleLabels, statusMeta } from '@/lib/nav';
-import { formatDate, formatDateTime, formatDuration, formatNumber, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatDuration, formatNumber, formatRelativeTime } from '@/lib/format';
+import { formatAxisAmount } from '@/components/ui/DataViz';
+import { epochMae, formatScore, isBetterRun, scoreName } from '@/lib/jobMetrics';
 
 /* ------------------------------------------------------------------ capacidades */
 
@@ -220,7 +222,7 @@ export type ReportBlock =
   | { kind: 'table'; title: string; columns: string[]; rows: string[][] }
   | { kind: 'list'; title: string; items: string[] }
   | { kind: 'note'; title: string; text: string; tone: 'info' | 'warning' | 'danger' }
-  | { kind: 'chart'; title: string; model: string; points: EpochPoint[] };
+  | { kind: 'chart'; title: string; model: string; points: EpochPoint[]; task: TrainingJob['task'] };
 
 export interface ReportSection {
   id: ReportSectionId;
@@ -305,12 +307,17 @@ export function filterJobs(jobs: TrainingJob[], projectId: string, bounds: Range
     .sort((a, b) => Date.parse(b.queuedAt) - Date.parse(a.queuedAt));
 }
 
-/** Mejor ejecución completada por val_acc: la misma regla usa la pantalla y la exportación. */
+/** Mejor ejecución completada: mayor val_acc en clasificación, menor MAE de validación en
+    regresión. La misma regla usa la pantalla y la exportación. */
 export function pickBestRun(jobs: TrainingJob[]): TrainingJob | null {
   return jobs.reduce<TrainingJob | null>(
-    (best, job) => (job.status === 'COMPLETED' && (best === null || job.valAccuracy > best.valAccuracy) ? job : best),
+    (best, job) => (job.status === 'COMPLETED' && isBetterRun(job, best) ? job : best),
     null,
   );
+}
+
+function scoreText(job: TrainingJob): string {
+  return `${scoreName(job.task)} ${formatScore(job)}`;
 }
 
 export interface ReportSources {
@@ -344,7 +351,8 @@ export interface ReportTotals {
   failed: number;
   cancelled: number;
   active: number;
-  bestAccuracy: number | null;
+  /** Métrica de la mejor ejecución según su tarea (val_acc o MAE val). */
+  bestMetric: { label: string; value: string } | null;
   gpuSeconds: number;
   datasets: number;
   members: number;
@@ -445,7 +453,7 @@ export function buildReport(
         failed: scopedJobs.filter((job) => job.status === 'FAILED').length,
         cancelled: scopedJobs.filter((job) => job.status === 'CANCELLED').length,
         active: scopedJobs.filter((job) => isActive(job.status)).length,
-        bestAccuracy: bestRun ? bestRun.valAccuracy : null,
+        bestMetric: bestRun ? { label: `Mejor ${scoreName(bestRun.task)}`, value: formatScore(bestRun) } : null,
         gpuSeconds,
         datasets: projectDatasets.length,
         members: sources.project.members.length,
@@ -510,7 +518,7 @@ function emptyDocument(
       failed: 0,
       cancelled: 0,
       active: 0,
-      bestAccuracy: null,
+      bestMetric: null,
       gpuSeconds: 0,
       datasets: 0,
       members: 0,
@@ -641,10 +649,7 @@ function architectureSummary(
     const sorted = [...jobs].sort((a, b) => Date.parse(b.queuedAt) - Date.parse(a.queuedAt));
     const last = sorted[0];
     const finished = jobs.filter((job) => job.status === 'COMPLETED');
-    const best = finished.reduce(
-      (acc, job) => (acc === null || job.valAccuracy > acc.valAccuracy ? job : acc),
-      null as TrainingJob | null,
-    );
+    const best = finished.reduce((acc, job) => (isBetterRun(job, acc) ? job : acc), null as TrainingJob | null);
     return [
       name,
       familyMeta[last.family].label,
@@ -652,7 +657,7 @@ function architectureSummary(
       formatNumber(jobs.length),
       formatNumber(finished.length),
       formatDate(last.queuedAt),
-      best ? formatRate(best.valAccuracy, 1) : 'sin métricas',
+      best ? scoreText(best) : 'sin métricas',
     ];
   });
 
@@ -668,14 +673,14 @@ function architectureSummary(
         ),
         field(
           'Mejor ejecución registrada',
-          bestRun ? `${bestRun.architectureName} · val_acc ${formatRate(bestRun.valAccuracy, 1)}` : 'Sin ejecuciones completadas',
+          bestRun ? `${bestRun.architectureName} · ${scoreText(bestRun)}` : 'Sin ejecuciones completadas',
         ),
       ],
     },
     {
       kind: 'table',
       title: 'Arquitecturas entrenadas (M06)',
-      columns: ['Arquitectura', 'Familia', 'Versión', 'Ejecuciones', 'Completadas', 'Último uso', 'Mejor val_acc'],
+      columns: ['Arquitectura', 'Familia', 'Versión', 'Ejecuciones', 'Completadas', 'Último uso', 'Mejor métrica val.'],
       rows,
     },
   ];
@@ -773,7 +778,7 @@ function trainingHistory(
       reproduce ? formatNumber(record.learningRate, 5) : MASKED,
       reproduce ? String(record.seed) : MASKED,
       job.status === 'COMPLETED' || job.status === 'FAILED'
-        ? `${formatRate(job.valAccuracy, 1)} · ${formatNumber(job.valLoss, 4)}`
+        ? `${scoreText(job)} · ${formatAxisAmount(job.valLoss)}`
         : 'pendiente',
       job.durationSeconds > 0 ? formatDuration(job.durationSeconds) : 'sin cómputo',
       job.owner,
@@ -808,7 +813,7 @@ function trainingHistory(
         'Optimizador',
         'Tasa de aprendizaje',
         'Semilla',
-        'val_acc · val_loss',
+        'Métrica val. · val_loss',
         'Duración',
         'Responsable',
         'Trazabilidad',
@@ -820,9 +825,10 @@ function trainingHistory(
   if (bestRun && sources.bestRun?.jobId === bestRun.id && sources.bestRun.points.length > 1) {
     blocks.push({
       kind: 'chart',
-      title: `Curva de pérdida y ganancia de la mejor ejecución (${bestRun.id})`,
+      title: `Curva de pérdida y ${bestRun.task === 'regression' ? 'MAE' : 'ganancia'} de la mejor ejecución (${bestRun.id})`,
       model: bestRun.architectureName,
       points: sources.bestRun.points,
+      task: bestRun.task,
     });
   }
 
@@ -1181,15 +1187,17 @@ export function toCsv(document: ReportDocument): string {
       }
       if (block.kind === 'chart') {
         lines.push(`# ${block.title} (${block.model})`);
-        lines.push(csvRow(['epoca', 'loss', 'val_loss', 'accuracy', 'val_accuracy']));
+        const regression = block.task === 'regression';
+        lines.push(csvRow(['epoca', 'loss', 'val_loss', ...(regression ? ['mae', 'val_mae'] : ['accuracy', 'val_accuracy'])]));
         block.points.forEach((point) =>
           lines.push(
             csvRow([
               String(point.epoch),
               point.loss.toFixed(4),
               point.valLoss.toFixed(4),
-              point.accuracy.toFixed(4),
-              point.valAccuracy.toFixed(4),
+              ...(regression
+                ? [epochMae(point, 'train').toFixed(4), epochMae(point, 'validation').toFixed(4)]
+                : [point.accuracy.toFixed(4), point.valAccuracy.toFixed(4)]),
             ]),
           ),
         );

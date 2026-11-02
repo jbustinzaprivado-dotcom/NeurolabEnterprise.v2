@@ -81,6 +81,10 @@ class TrainingJobOut(CamelModel):
     accuracy: float
     val_loss: float
     val_accuracy: float
+    # Tarea del trabajo: en regresión no hay accuracy y la métrica de época es el MAE.
+    task: Literal["classification", "regression"]
+    mae: float | None = None
+    val_mae: float | None = None
     progress: float
     queued_at: datetime
     started_at: datetime | None

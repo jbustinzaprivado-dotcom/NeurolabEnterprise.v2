@@ -4516,6 +4516,36 @@
             "type": "number",
             "title": "Valaccuracy"
           },
+          "task": {
+            "type": "string",
+            "enum": [
+              "classification",
+              "regression"
+            ],
+            "title": "Task"
+          },
+          "mae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae"
+          },
+          "valMae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valmae"
+          },
           "progress": {
             "type": "number",
             "title": "Progress"
@@ -4633,6 +4663,7 @@
           "accuracy",
           "valLoss",
           "valAccuracy",
+          "task",
           "progress",
           "queuedAt",
           "startedAt",

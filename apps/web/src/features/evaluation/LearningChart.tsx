@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react';
 import type { EvaluationMetric, EvaluationRun } from '@/types/evaluation';
 import {
   formatMetricAxis,
+  isUnbounded,
   formatMetricValue,
   metricMeta,
   metricValue,
@@ -48,9 +49,9 @@ export function LearningChart({ runs, metric, height = 264 }: LearningChartProps
     const valueMax = Math.max(...values);
     const valueMin = Math.min(...values);
     const domainMin =
-      metric === 'loss' ? 0 : Math.max(0, Math.floor((valueMin - 0.03) * 20) / 20);
+      isUnbounded(metric) ? 0 : Math.max(0, Math.floor((valueMin - 0.03) * 20) / 20);
     const domainMax =
-      metric === 'loss'
+      isUnbounded(metric)
         ? Math.max(0.01, valueMax * 1.08)
         : Math.min(1, Math.ceil((valueMax + 0.01) * 100) / 100);
     const span = domainMax - domainMin || 1;

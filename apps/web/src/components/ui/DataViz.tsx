@@ -270,14 +270,59 @@ export function HeatmapGrid({ matrix }: HeatmapProps) {
   );
 }
 
+/** Serie del eje derecho: la exactitud en clasificación; el MAE en regresión. */
+export interface SecondarySeries {
+  /** Nombre en leyenda, eje y tooltip (p. ej. "ganancia" o "MAE"). */
+  label: string;
+  pick: (point: EpochPoint) => number;
+  pickValidation: (point: EpochPoint) => number;
+  format: (value: number) => string;
+  /** true: razón 0–1 (exactitud); false: magnitud sin techo que empieza en cero (error). */
+  bounded: boolean;
+}
+
+export const ACCURACY_SERIES: SecondarySeries = {
+  label: 'ganancia',
+  pick: (point) => point.accuracy,
+  pickValidation: (point) => point.valAccuracy,
+  format: (value) => formatRate(value),
+  bounded: true,
+};
+
+/** Regresión: error absoluto medio por época, en las unidades del objetivo. */
+export const MAE_SERIES: SecondarySeries = {
+  label: 'MAE',
+  pick: (point) => point.metrics?.mae ?? 0,
+  pickValidation: (point) => point.metrics?.val_mae ?? 0,
+  format: (value) => (Math.abs(value) >= 100 ? formatNumber(value, 0) : formatNumber(value, 3)),
+  bounded: false,
+};
+
+export function secondaryFor(task: 'classification' | 'regression'): SecondarySeries {
+  return task === 'regression' ? MAE_SERIES : ACCURACY_SERIES;
+}
+
+/** Pérdidas de regresión (MSE de precios) llegan a miles de millones: el eje las compacta. */
+export function formatAxisAmount(value: number): string {
+  return Math.abs(value) >= 1000
+    ? new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+    : formatLoss(value);
+}
+
 export interface LossGainChartProps {
   points: EpochPoint[];
   /** Modelo o algoritmo representado; alimenta el anuncio accesible de la gráfica. */
   model: string;
   height?: number;
+  /** Métrica del eje derecho; por defecto, la exactitud. */
+  secondary?: SecondarySeries;
 }
 
 const CURVE_PAD = { top: 20, right: 48, bottom: 30, left: 48 };
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 /** Techo del eje de pérdida, redondeado a media década para dar etiquetas legibles. */
 function lossAxisMax(value: number): number {
@@ -311,7 +356,7 @@ function useContainerWidth<T extends HTMLElement>(): [React.RefObject<T>, number
  * Curva de aprendizaje época a época: pérdida (eje izquierdo) frente a ganancia
  * o exactitud (eje derecho), con sus contrapartes de validación.
  */
-export function LossGainChart({ points, model, height = 232 }: LossGainChartProps) {
+export function LossGainChart({ points, model, height = 232, secondary = ACCURACY_SERIES }: LossGainChartProps) {
   const gradientId = useId().replace(/:/g, '');
   const [wrapRef, measured] = useContainerWidth<HTMLDivElement>();
   const [hovered, setHovered] = useState<number | null>(null);
@@ -324,12 +369,12 @@ export function LossGainChart({ points, model, height = 232 }: LossGainChartProp
 
     const lossTop = lossAxisMax(Math.max(...points.map((p) => Math.max(p.loss, p.valLoss))));
 
-    const gains = points.flatMap((p) => [p.accuracy, p.valAccuracy]);
+    const gains = points.flatMap((p) => [secondary.pick(p), secondary.pickValidation(p)]);
     const minGain = Math.min(...gains);
     const maxGain = Math.max(...gains);
     const margin = Math.max(0.02, (maxGain - minGain) * 0.3);
-    const gainFloor = Math.max(0, Math.floor((minGain - margin) * 20) / 20);
-    const gainCeil = Math.min(1, Math.ceil(maxGain * 20) / 20);
+    const gainFloor = secondary.bounded ? Math.max(0, Math.floor((minGain - margin) * 20) / 20) : 0;
+    const gainCeil = secondary.bounded ? Math.min(1, Math.ceil(maxGain * 20) / 20) : lossAxisMax(maxGain);
     const gainSpan = gainCeil - gainFloor || 1;
 
     const toX = (index: number) =>
@@ -356,23 +401,25 @@ export function LossGainChart({ points, model, height = 232 }: LossGainChartProp
       lossArea: `M${toX(0).toFixed(1)},${baseY} L${trace((p) => p.loss, lossY).slice(1)} L${toX(last).toFixed(1)},${baseY} Z`,
       lossLine: trace((p) => p.loss, lossY),
       valLossLine: trace((p) => p.valLoss, lossY),
-      gainLine: trace((p) => p.accuracy, gainY),
-      valGainLine: trace((p) => p.valAccuracy, gainY),
+      gainLine: trace(secondary.pick, gainY),
+      valGainLine: trace(secondary.pickValidation, gainY),
       marks: points.map((point, index) => ({
         x: toX(index),
         lossY: lossY(point.loss),
-        gainY: gainY(point.accuracy),
+        gainY: gainY(secondary.pick(point)),
         point,
       })),
       ticks: [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
         y: baseY - ratio * innerH,
-        loss: formatLoss(ratio * lossTop),
-        gain: formatRate(gainFloor + ratio * gainSpan, 0),
+        loss: formatAxisAmount(ratio * lossTop),
+        gain: secondary.bounded
+          ? formatRate(gainFloor + ratio * gainSpan, 0)
+          : formatAxisAmount(gainFloor + ratio * gainSpan),
       })),
       /* Numerar las 60 épocas las solaparía: se etiqueta una de cada N. */
       labelEvery: Math.max(1, Math.ceil(points.length / 7)),
     };
-  }, [points, height, vbW]);
+  }, [points, height, vbW, secondary]);
 
   const active = hovered === null ? null : geometry.marks[hovered];
   const latest = geometry.marks[geometry.marks.length - 1];
@@ -390,14 +437,14 @@ export function LossGainChart({ points, model, height = 232 }: LossGainChartProp
         </span>
         <span>
           <i className="chart__swatch chart__swatch--gain" aria-hidden="true" />
-          Ganancia entrenamiento
+          {capitalize(secondary.label)} entrenamiento
         </span>
         <span>
           <i
             className="chart__swatch chart__swatch--gain chart__swatch--dashed"
             aria-hidden="true"
           />
-          Ganancia validación
+          {capitalize(secondary.label)} validación
         </span>
       </div>
 
@@ -405,7 +452,7 @@ export function LossGainChart({ points, model, height = 232 }: LossGainChartProp
         className="chart__svg"
         viewBox={`0 0 ${vbW} ${height}`}
         role="img"
-        aria-label={`Curva de pérdida y ganancia de ${model} a lo largo de ${points.length} épocas`}
+        aria-label={`Curva de pérdida y ${secondary.label} de ${model} a lo largo de ${points.length} épocas`}
         onMouseLeave={() => setHovered(null)}
       >
         <defs>
@@ -511,22 +558,22 @@ export function LossGainChart({ points, model, height = 232 }: LossGainChartProp
           y={11}
           textAnchor="start"
         >
-          ganancia
+          {secondary.label}
         </text>
       </svg>
 
       <div className="chart__tooltip chart__tooltip--curve" aria-live="polite">
         <span>
           Época {(active ?? latest).point.epoch} · pérdida{' '}
-          <b className="chart__metric chart__metric--loss">{formatLoss((active ?? latest).point.loss)}</b>{' '}
+          <b className="chart__metric chart__metric--loss">{formatAxisAmount((active ?? latest).point.loss)}</b>{' '}
           · val{' '}
           <b className="chart__metric chart__metric--loss">
-            {formatLoss((active ?? latest).point.valLoss)}
+            {formatAxisAmount((active ?? latest).point.valLoss)}
           </b>
         </span>
         <strong>
-          ganancia {formatRate((active ?? latest).point.accuracy)} · val{' '}
-          {formatRate((active ?? latest).point.valAccuracy)}
+          {secondary.label} {secondary.format(secondary.pick((active ?? latest).point))} · val{' '}
+          {secondary.format(secondary.pickValidation((active ?? latest).point))}
         </strong>
       </div>
     </div>

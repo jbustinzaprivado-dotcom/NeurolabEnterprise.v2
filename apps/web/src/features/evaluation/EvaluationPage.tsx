@@ -14,7 +14,9 @@ import { ConfusionMatrix } from '@/features/evaluation/ConfusionMatrix';
 import { ClassMetrics } from '@/features/evaluation/ClassMetrics';
 import { ComparisonTable } from '@/features/evaluation/ComparisonTable';
 import { ObservationLog } from '@/features/evaluation/ObservationLog';
+import { RegressionKpis, RegressionSummary } from '@/features/evaluation/RegressionEvaluation';
 import {
+  CHART_METRICS_BY_TASK,
   classesOf,
   metricMeta,
   metricsFromConfusion,
@@ -22,7 +24,6 @@ import {
   signed,
 } from '@/features/evaluation/model';
 
-const CHART_METRICS: EvaluationMetric[] = ['loss', 'accuracy', 'f1'];
 const TONES: RunTone[] = ['indigo', 'sky', 'emerald', 'amber'];
 
 interface Notice {
@@ -59,7 +60,7 @@ export function EvaluationPage() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  /* Solo ejecuciones COMPLETED de clasificación: las evaluó el worker sobre la partición de prueba. */
+  /* Ejecuciones COMPLETED de clasificación y de regresión, evaluadas por el worker sobre la partición de prueba. */
   const runsQuery = useQuery({
     queryKey: queryKeys.evaluations,
     queryFn: async (): Promise<EvaluationRun[]> =>
@@ -87,26 +88,34 @@ export function EvaluationPage() {
   );
 
   const current = runs.find((run) => run.id === runId) ?? runs[0] ?? null;
-  const currentIndex = current ? runs.findIndex((run) => run.id === current.id) : -1;
-  const previous = currentIndex >= 0 ? runs[currentIndex + 1] ?? null : null;
+  const regression = current?.task === 'regression';
+  /* Solo se comparan ejecuciones de la misma tarea: accuracy y R² no se miden en la misma escala. */
+  const peers = useMemo(() => runs.filter((run) => run.task === current?.task), [runs, current]);
+  const currentIndex = current ? peers.findIndex((run) => run.id === current.id) : -1;
+  const previous = currentIndex >= 0 ? peers[currentIndex + 1] ?? null : null;
+  const chartMetrics = CHART_METRICS_BY_TASK[current?.task ?? 'classification'];
+  const activeMetric: EvaluationMetric = chartMetrics.includes(metric) ? metric : 'loss';
 
   const { perClass, summary } = useMemo(
-    () => metricsFromConfusion(current?.confusion ?? [[0]]),
-    [current],
+    () => metricsFromConfusion(current && !regression && current.confusion.length ? current.confusion : [[0]]),
+    [current, regression],
   );
   const previousSummary = useMemo(
-    () => (previous ? metricsFromConfusion(previous.confusion).summary : null),
-    [previous],
+    () => (previous && !regression ? metricsFromConfusion(previous.confusion).summary : null),
+    [previous, regression],
   );
 
   const chartRuns = useMemo(
-    () => (current ? [current, ...runs.filter((run) => compareIds.includes(run.id) && run.id !== current.id)] : []),
-    [current, runs, compareIds],
+    () => (current ? [current, ...peers.filter((run) => compareIds.includes(run.id) && run.id !== current.id)] : []),
+    [current, peers, compareIds],
   );
 
   const selectRun = (nextId: string) => {
+    const next = runs.find((run) => run.id === nextId);
     setRunId(nextId);
-    setCompareIds((previousIds) => previousIds.filter((id) => id !== nextId));
+    setCompareIds((previousIds) =>
+      previousIds.filter((id) => id !== nextId && runs.find((run) => run.id === id)?.task === next?.task),
+    );
   };
 
   const toggleCompare = (id: string) => {
@@ -182,8 +191,9 @@ export function EvaluationPage() {
             <Icon name="metrics" />
             <h3>{status === 'loading' ? 'Cargando evaluaciones…' : 'Aún no hay entrenamientos completados'}</h3>
             <p>
-              Cuando un entrenamiento de clasificación termina en M06, el worker lo evalúa sobre la partición
-              de prueba y aparece aquí con su matriz de confusión y sus curvas.
+              Cuando un entrenamiento termina en M06, el worker lo evalúa sobre la partición de prueba y
+              aparece aquí con sus curvas y su evaluación final: matriz de confusión en clasificación, o
+              R², RMSE y MAE en regresión.
             </p>
             <a className="btn btn--primary" href="/training">
               <Icon name="training" size={16} />
@@ -217,9 +227,9 @@ export function EvaluationPage() {
           </p>
           <h1 className="page-head__title">Evaluación final y comparación de ejecuciones</h1>
           <p className="page-head__lede">
-            Consulte la pérdida y las métricas época a época, revise la matriz de confusión sobre la
-            partición de prueba y deje constancia de limitaciones antes de registrar una versión del
-            modelo.
+            Consulte la pérdida y las métricas época a época, revise la evaluación final sobre la
+            partición de prueba (matriz de confusión en clasificación; R², RMSE y MAE en regresión) y
+            deje constancia de limitaciones antes de registrar una versión del modelo.
           </p>
         </div>
         <div className="page-head__actions">
@@ -286,6 +296,7 @@ export function EvaluationPage() {
           </div>
         </section>
 
+        {regression ? <RegressionKpis run={current} previous={previous} /> : (
         <section className="kpi-grid" aria-label="Indicadores de la evaluación">
           <article className="kpi" data-accent="indigo">
             <div className="kpi__top">
@@ -381,6 +392,7 @@ export function EvaluationPage() {
             </div>
           </article>
         </section>
+        )}
 
         <div className="ev-grid">
           <div className="ev-col">
@@ -390,12 +402,12 @@ export function EvaluationPage() {
               icon="metrics"
               actions={
                 <div className="filters" role="group" aria-label="Métrica de la gráfica">
-                  {CHART_METRICS.map((option) => (
+                  {chartMetrics.map((option) => (
                     <button
                       key={option}
                       type="button"
                       className="filter-btn"
-                      aria-pressed={metric === option}
+                      aria-pressed={activeMetric === option}
                       onClick={() => setMetric(option)}
                     >
                       {metricMeta[option].label}
@@ -404,7 +416,7 @@ export function EvaluationPage() {
                 </div>
               }
             >
-              <LearningChart runs={chartRuns} metric={metric} />
+              <LearningChart runs={chartRuns} metric={activeMetric} />
               <div className="ev-chart-meta">
                 <span>
                   <Icon name="clock" size={13} />
@@ -417,11 +429,25 @@ export function EvaluationPage() {
                 </span>
               </div>
               <p className="panel__note">
-                El historial llega de <code>GET /evaluations</code>: pérdida, exactitud y F1 macro que el
-                worker calculó al cerrar cada época. El navegador solo dibuja la curva (RN-03).
+                El historial llega de <code>GET /evaluations</code>:{' '}
+                {regression ? 'pérdida (MSE) y MAE' : 'pérdida, exactitud y F1 macro'} que el worker calculó al
+                cerrar cada época. El navegador solo dibuja la curva (RN-03).
               </p>
             </Panel>
 
+            {regression ? (
+              <Panel
+                title="Evaluación final · errores de predicción"
+                subtitle={`Partición de prueba · ${formatNumber(current.samples)} filas · objetivo «${current.target}»`}
+                icon="dataset"
+              >
+                <RegressionSummary run={current} />
+                <p className="panel__note">
+                  RMSE y MAE están en las unidades de «{current.target}». La partición de prueba no participó
+                  en el entrenamiento ni en la elección del checkpoint.
+                </p>
+              </Panel>
+            ) : (
             <Panel
               title="Evaluación final · matriz de confusión"
               subtitle={`Partición de prueba · ${formatNumber(current.samples)} muestras · checkpoint ${current.bestEpoch}`}
@@ -457,6 +483,7 @@ export function EvaluationPage() {
                 elección del checkpoint.
               </p>
             </Panel>
+            )}
           </div>
 
           <div className="ev-col">
@@ -528,7 +555,7 @@ export function EvaluationPage() {
                 </li>
                 <li data-ok="true">
                   <Icon name="checkCircle" size={14} />
-                  Métrica primaria declarada: F1 macro
+                  Métrica primaria declarada: {regression ? 'R²' : 'F1 macro'}
                 </li>
               </ul>
               <p className="panel__note">
@@ -537,6 +564,7 @@ export function EvaluationPage() {
               </p>
             </Panel>
 
+            {regression ? null : (
             <Panel
               title="Métricas por clase"
               subtitle="Precisión, recall y F1 sobre la partición de prueba."
@@ -545,17 +573,18 @@ export function EvaluationPage() {
             >
               <ClassMetrics run={current} />
             </Panel>
+            )}
           </div>
         </div>
 
         <Panel
           title="Comparación de ejecuciones"
-          subtitle="Histórico completado del proyecto. El Δ F1 se mide contra la ejecución evaluada."
+          subtitle={`Ejecuciones de ${regression ? 'regresión' : 'clasificación'} completadas. El Δ ${regression ? 'R²' : 'F1'} se mide contra la ejecución evaluada.`}
           icon="queue"
-          actions={<Chip tone="outline">{runs.length} ejecuciones</Chip>}
+          actions={<Chip tone="outline">{peers.length} {peers.length === 1 ? 'ejecución' : 'ejecuciones'}</Chip>}
         >
           <ComparisonTable
-            runs={runs}
+            runs={peers}
             currentId={current.id}
             compareIds={compareIds}
             onSelect={selectRun}

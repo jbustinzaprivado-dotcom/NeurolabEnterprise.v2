@@ -117,7 +117,9 @@ def snapshot(db: Session, user: User) -> dict:
     models = list(db.scalars(select(ModelVersion).where(ModelVersion.project_id.in_(project_ids))))
     approved = [m for m in models if m.status == "APPROVED"]
     completed = [j for j in serialized if j["status"] == sm.COMPLETED]
-    best = max(completed, key=lambda j: j["valAccuracy"], default=None)
+    # La accuracy solo existe en clasificación; un modelo de regresión no debe contar como 0 %.
+    classified = [j for j in completed if j["task"] == "classification"]
+    best = max(classified, key=lambda j: j["valAccuracy"], default=None)
     last7 = sum(jobs_per_day[d] for d in days[7:])
     prev7 = sum(jobs_per_day[d] for d in days[:7])
     health_data = health(db)
@@ -148,9 +150,9 @@ def snapshot(db: Session, user: User) -> dict:
         {
             "id": "accuracy", "label": "Mejor accuracy validada", "accent": "amber", "icon": "metrics",
             "value": round(best["valAccuracy"] * 100, 2) if best else 0, "decimals": 2, "unit": "%",
-            "trend": {"direction": "flat", "value": f"{len(completed)} trabajos completados"},
-            "footnote": f"{best['id']} · {best['architectureName']}" if best else "Aún no hay entrenamientos completados",
-            "spark": [round(j["valAccuracy"] * 100, 2) for j in reversed(completed[:14])] or [0],
+            "trend": {"direction": "flat", "value": f"{len(classified)} de clasificación"},
+            "footnote": f"{best['id']} · {best['architectureName']}" if best else "Aún no hay clasificaciones completadas",
+            "spark": [round(j["valAccuracy"] * 100, 2) for j in reversed(classified[:14])] or [0],
         },
     ]
 

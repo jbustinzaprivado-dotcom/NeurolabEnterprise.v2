@@ -1,6 +1,8 @@
 import type { TrainingJob } from '@/types/domain';
 import { familyMeta } from '@/lib/nav';
-import { formatDuration, formatLoss, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatDuration, formatRelativeTime } from '@/lib/format';
+import { formatAxisAmount } from '@/components/ui/DataViz';
+import { formatScore, scoreName } from '@/lib/jobMetrics';
 import { Panel } from '@/components/ui/Panel';
 import { StatusChip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
@@ -47,7 +49,7 @@ export function RecentJobsTable({ jobs, total, filtered }: RecentJobsTableProps)
                 <th scope="col">Arquitectura</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Épocas</th>
-                <th scope="col">Val. acc.</th>
+                <th scope="col">Métrica val.</th>
                 <th scope="col">Duración</th>
                 <th scope="col" className="is-right">
                   Finalizado
@@ -77,10 +79,11 @@ export function RecentJobsTable({ jobs, total, filtered }: RecentJobsTableProps)
                   <td data-label="Épocas" data-numeric>
                     {job.epoch}/{job.epochs}
                   </td>
-                  <td data-label="Val. accuracy" data-numeric>
-                    {job.status === 'FAILED'
-                      ? formatLoss(job.valLoss)
-                      : formatRate(job.valAccuracy)}
+                  <td data-label="Métrica val." data-numeric>
+                    {job.status === 'FAILED' ? formatAxisAmount(job.valLoss) : formatScore(job)}
+                    <span className="metric-cell__label">
+                      {job.status === 'FAILED' ? 'val_loss' : scoreName(job.task)}
+                    </span>
                   </td>
                   <td data-label="Duración" data-numeric>
                     {formatDuration(job.durationSeconds)}

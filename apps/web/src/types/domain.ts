@@ -49,6 +49,10 @@ export interface TrainingJob {
   accuracy: number;
   valLoss: number;
   valAccuracy: number;
+  /** En regresión no hay accuracy: la métrica de época es el error absoluto medio. */
+  task: 'classification' | 'regression';
+  mae: number | null;
+  valMae: number | null;
   progress: number;
   queuedAt: string;
   startedAt: string | null;
@@ -117,6 +121,8 @@ export interface EpochPoint {
   valLoss: number;
   accuracy: number;
   valAccuracy: number;
+  /** Todas las métricas de la época tal como las registró el worker (p. ej. mae, val_mae). */
+  metrics?: Record<string, number>;
 }
 
 /** Curva de pérdida y métrica de un entrenamiento concreto. */

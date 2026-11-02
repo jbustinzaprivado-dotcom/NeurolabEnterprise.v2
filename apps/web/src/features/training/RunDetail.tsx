@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import type { Actor, JobStatus, TrainingJob } from '@/types/domain';
 import { familyMeta, statusMeta } from '@/lib/nav';
-import { formatCountdown, formatDateTime, formatDuration, formatLoss, formatNumber, formatRate } from '@/lib/format';
+import { formatCountdown, formatDateTime, formatDuration, formatNumber, formatRate } from '@/lib/format';
 import { Panel } from '@/components/ui/Panel';
 import { Chip, StatusChip } from '@/components/ui/Chip';
 import { ProgressBar } from '@/components/ui/Progress';
 import { Icon } from '@/components/ui/Icon';
-import { LossGainChart } from '@/components/ui/DataViz';
+import { LossGainChart, formatAxisAmount, secondaryFor } from '@/components/ui/DataViz';
+import { epochMae, formatErrorAmount } from '@/lib/jobMetrics';
 import { PRIORITY_LABEL, can, isActive, shortName } from '@/features/training/model';
 import type { LogLevel, RunLog, RunRecord } from '@/features/training/model';
 import { useJobStream } from '@/features/training/useJobStream';
@@ -237,18 +238,27 @@ export function RunDetail({
         </div>
 
         <div className="tr-detail__metrics">
-          <Stat label="loss" value={lastPoint ? formatLoss(lastPoint.loss) : job.epoch > 0 ? formatLoss(job.loss) : '—'} />
-          <Stat label="accuracy" value={lastPoint ? formatRate(lastPoint.accuracy) : job.epoch > 0 ? formatRate(job.accuracy) : '—'} />
-          <Stat label="val loss" value={lastPoint ? formatLoss(lastPoint.valLoss) : job.epoch > 0 ? formatLoss(job.valLoss) : '—'} />
-          <Stat label="val accuracy" value={lastPoint ? formatRate(lastPoint.valAccuracy) : job.epoch > 0 ? formatRate(job.valAccuracy) : '—'} />
+          <Stat label="loss" value={lastPoint ? formatAxisAmount(lastPoint.loss) : job.epoch > 0 ? formatAxisAmount(job.loss) : '—'} />
+          {job.task === 'regression' ? (
+            <Stat label="MAE" value={lastPoint ? formatErrorAmount(epochMae(lastPoint, 'train')) : job.mae !== null ? formatErrorAmount(job.mae) : '—'} />
+          ) : (
+            <Stat label="accuracy" value={lastPoint ? formatRate(lastPoint.accuracy) : job.epoch > 0 ? formatRate(job.accuracy) : '—'} />
+          )}
+          <Stat label="val loss" value={lastPoint ? formatAxisAmount(lastPoint.valLoss) : job.epoch > 0 ? formatAxisAmount(job.valLoss) : '—'} />
+          {job.task === 'regression' ? (
+            <Stat label="val MAE" value={lastPoint ? formatErrorAmount(epochMae(lastPoint, 'validation')) : job.valMae !== null ? formatErrorAmount(job.valMae) : '—'} />
+          ) : (
+            <Stat label="val accuracy" value={lastPoint ? formatRate(lastPoint.valAccuracy) : job.epoch > 0 ? formatRate(job.valAccuracy) : '—'} />
+          )}
           <Stat label="época/seg" value={perEpoch !== null ? formatNumber(perEpoch, 1) : '—'} />
           <Stat label="duración" value={job.durationSeconds > 0 ? formatDuration(job.durationSeconds) : '—'} />
         </div>
 
         <div className="tr-detail__block">
-          <p className="u-caps">Curva de pérdida y ganancia</p>
+          <p className="u-caps">Curva de pérdida y {job.task === 'regression' ? 'MAE' : 'ganancia'}</p>
           {points.length >= 2 ? (
-            <LossGainChart points={points} model={`${job.architectureName} · ${job.optimizer}`} height={208} />
+            <LossGainChart points={points} model={`${job.architectureName} · ${job.optimizer}`} height={208}
+              secondary={secondaryFor(job.task)} />
           ) : (
             <div className="skeleton tr-detail__skeleton" aria-hidden="true" />
           )}

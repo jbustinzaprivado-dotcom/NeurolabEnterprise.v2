@@ -7,6 +7,7 @@ import { Chip, StatusChip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { PRIORITY_LABEL, can, shortName } from '@/features/training/model';
 import type { RunRecord } from '@/features/training/model';
+import { formatErrorAmount } from '@/lib/jobMetrics';
 
 /* §7 · historial de ejecuciones: fecha, versión, duración, estado, parámetros
    principales y sólo las acciones autorizadas por el rol (§10 trazabilidad). */
@@ -197,7 +198,10 @@ export function HistoryTable({ actor, jobs, recordOf, selectedId, onSelect, onRe
                         <span>{PRIORITY_LABEL[record.priority]}</span>
                       </p>
                       <p className="table__sub u-truncate">
-                        {job.datasetName} · exactitud final {job.epoch > 0 ? formatRate(job.accuracy) : 'sin datos'}
+                        {job.datasetName} ·{' '}
+                        {job.task === 'regression'
+                          ? `MAE final ${job.epoch > 0 && job.mae !== null ? formatErrorAmount(job.mae) : 'sin datos'}`
+                          : `exactitud final ${job.epoch > 0 ? formatRate(job.accuracy) : 'sin datos'}`}
                       </p>
                     </td>
 

@@ -34,10 +34,15 @@ def _short(label: str) -> str:
 
 
 def evaluation_run(db: Session, job: TrainingJob) -> dict | None:
-    """Forma `EvaluationRun` de `apps/web/src/types/evaluation.ts`; solo clasificación."""
+    """Forma `EvaluationRun` de `apps/web/src/types/evaluation.ts`.
+
+    Clasificación trae la matriz de confusión; regresión, R², RMSE y MAE de prueba en las
+    unidades del objetivo (la matriz queda vacía).
+    """
     evaluation = job.result_json.get("evaluation")
-    if not evaluation or evaluation.get("task") != "classification":
+    if not evaluation or evaluation.get("task") not in {"classification", "regression"}:
         return None
+    task = evaluation["task"]
 
     by_epoch: dict[int, dict[str, float]] = defaultdict(dict)
     for row in db.scalars(select(TrainingMetric).where(TrainingMetric.job_id == job.id)):
@@ -51,17 +56,22 @@ def evaluation_run(db: Session, job: TrainingJob) -> dict | None:
             "valAccuracy": values.get("val_accuracy", 0.0),
             "f1": values.get("f1", values.get("accuracy", 0.0)),
             "valF1": values.get("val_f1", values.get("val_accuracy", 0.0)),
+            "mae": values.get("mae"),
+            "valMae": values.get("val_mae"),
         }
         for epoch, values in sorted(by_epoch.items())
     ]
     best = min(history, key=lambda point: point["valLoss"])["epoch"] if history else job.epoch
-    classes = evaluation["confusionMatrix"]["classes"]
+    classes = evaluation["confusionMatrix"]["classes"] if task == "classification" else []
     model = db.scalar(select(ModelVersion).where(ModelVersion.job_id == job.id))
     params = job.params_json
     duration = int((job.ended_at - job.started_at).total_seconds()) if job.started_at and job.ended_at else 0
     return {
         "id": job.id,
         "jobId": job.id,
+        "task": task,
+        "target": job.target_column,
+        "testMetrics": {key: evaluation["test"][key] for key in ("r2", "rmse", "mae") if key in evaluation["test"]},
         "name": f"{job.architecture.name} v{model.version}.0" if model else job.architecture.name,
         "project": job.project.name,
         "projectId": job.project_id,

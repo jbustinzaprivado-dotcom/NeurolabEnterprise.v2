@@ -1041,3 +1041,18 @@
     flex-wrap: wrap;
   }
 }
+
+/* Evaluación de regresión: valor arriba y su lectura debajo. */
+.ev-regression dd strong {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.ev-regression dd span {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}

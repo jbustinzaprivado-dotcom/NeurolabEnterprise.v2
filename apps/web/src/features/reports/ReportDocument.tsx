@@ -1,8 +1,8 @@
 import type { ReportBlock, ReportDocument, ReportSection } from '@/features/reports/model';
 import { MASKED } from '@/features/reports/model';
 import { Icon } from '@/components/ui/Icon';
-import { LossGainChart } from '@/components/ui/DataViz';
-import { formatDateTime, formatNumber, formatDuration, formatRate } from '@/lib/format';
+import { LossGainChart, secondaryFor } from '@/components/ui/DataViz';
+import { formatDateTime, formatNumber, formatDuration } from '@/lib/format';
 
 /* §6 M09 · el documento es el mismo objeto que se exporta. Lo que la pantalla muestra es la
    estructura que viaja al CSV y al PDF, así que no existen dos versiones del informe. */
@@ -47,10 +47,7 @@ export function ReportSheet({ document }: { document: ReportDocument }) {
         <Metric label="Completadas" value={formatNumber(totals.completed)} tone="ok" />
         <Metric label="Fallidas" value={formatNumber(totals.failed)} tone={totals.failed > 0 ? 'bad' : undefined} />
         <Metric label="Canceladas" value={formatNumber(totals.cancelled)} tone={totals.cancelled > 0 ? 'warn' : undefined} />
-        <Metric
-          label="Mejor val_acc"
-          value={totals.bestAccuracy === null ? '—' : formatRate(totals.bestAccuracy, 1)}
-        />
+        <Metric label={totals.bestMetric?.label ?? 'Mejor métrica val.'} value={totals.bestMetric?.value ?? '—'} />
         <Metric label="Cómputo" value={formatDuration(totals.gpuSeconds)} />
         <Metric label="Avisos" value={formatNumber(totals.warnings)} tone={totals.warnings > 0 ? 'warn' : 'ok'} />
       </div>
@@ -183,7 +180,7 @@ function BlockView({ block }: { block: ReportBlock }) {
     return (
       <figure className="rp-block">
         <h4 className="rp-block__title">{block.title}</h4>
-        <LossGainChart points={block.points} model={block.model} height={210} />
+        <LossGainChart points={block.points} model={block.model} height={210} secondary={secondaryFor(block.task)} />
         <figcaption className="rp-block__empty">
           Series época a época leídas del trabajo {block.model}; la consola no recalcula métricas (RN-03).
         </figcaption>

@@ -6,7 +6,8 @@ import { formatLoss, formatNumber, formatRate } from '@/lib/format';
 import { Chip, StatusChip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { Panel } from '@/components/ui/Panel';
-import { LossGainChart, Trend } from '@/components/ui/DataViz';
+import { LossGainChart, Trend, formatAxisAmount, secondaryFor } from '@/components/ui/DataViz';
+import { epochMae, formatErrorAmount } from '@/lib/jobMetrics';
 
 /** Sólo los trabajos que ya corrieron publican historial de épocas; hacen falta dos para trazar. */
 const PLOTTABLE: JobStatus[] = ['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'];
@@ -22,6 +23,16 @@ function signed(value: number, decimals = 1): string {
 
 /** Resumen de la curva: cifras de convergencia y sesgo de generalización. */
 function describe(points: EpochPoint[]) {
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+  const maes = points.map((point) => epochMae(point, 'validation'));
+  const regression = {
+    firstMae: epochMae(firstPoint, 'train'),
+    lastMae: epochMae(lastPoint, 'train'),
+    lastValMae: epochMae(lastPoint, 'validation'),
+    bestValMae: Math.min(...maes),
+    maeGap: epochMae(lastPoint, 'validation') - epochMae(lastPoint, 'train'),
+  };
   const first = points[0];
   const last = points[points.length - 1];
   return {
@@ -32,6 +43,7 @@ function describe(points: EpochPoint[]) {
     lastVal: last.valAccuracy,
     bestVal: Math.max(...points.map((point) => point.valAccuracy)),
     gapPts: (last.valAccuracy - last.accuracy) * 100,
+    ...regression,
   };
 }
 
@@ -78,8 +90,12 @@ export function CurvesPanel({ jobs }: { jobs: TrainingJob[] }) {
 
   return (
     <Panel
-      title="Pérdida y ganancia por modelo"
-      subtitle="La pérdida converge hacia abajo en el eje izquierdo; la ganancia —exactitud del modelo— crece en el derecho."
+      title={job.task === 'regression' ? 'Pérdida y error por modelo' : 'Pérdida y ganancia por modelo'}
+      subtitle={
+        job.task === 'regression'
+          ? 'Modelo de regresión: la pérdida (MSE) en el eje izquierdo y el error absoluto medio en el derecho; ambos bajan al aprender.'
+          : 'La pérdida converge hacia abajo en el eje izquierdo; la ganancia —exactitud del modelo— crece en el derecho.'
+      }
       icon="metrics"
       actions={
         points ? (
@@ -88,7 +104,11 @@ export function CurvesPanel({ jobs }: { jobs: TrainingJob[] }) {
               <strong>{formatNumber(points.length)}</strong> épocas
             </span>
             <span>
-              <strong>{formatRate(describe(points).bestVal)}</strong> pico val.
+              {job.task === 'regression' ? (
+                <><strong>{formatErrorAmount(describe(points).bestValMae)}</strong> mejor MAE val.</>
+              ) : (
+                <><strong>{formatRate(describe(points).bestVal)}</strong> pico val.</>
+              )}
             </span>
           </div>
         ) : null
@@ -133,8 +153,8 @@ export function CurvesPanel({ jobs }: { jobs: TrainingJob[] }) {
         <div className="skeleton curve__skeleton" aria-hidden="true" />
       ) : (
         <>
-          <CurveStats points={points} />
-          <LossGainChart points={points} model={`${job.architectureName} · ${job.optimizer}`} />
+          <CurveStats points={points} regression={job.task === 'regression'} />
+          <LossGainChart points={points} model={`${job.architectureName} · ${job.optimizer}`} secondary={secondaryFor(job.task)} />
           <p className="panel__note">
             Los puntos se leen de <code>GET /training-jobs/&#123;id&#125;/metrics</code>: el navegador
             sólo dibuja la curva y no evalúa el modelo (RN-03). Una brecha{' '}
@@ -146,8 +166,41 @@ export function CurvesPanel({ jobs }: { jobs: TrainingJob[] }) {
   );
 }
 
-function CurveStats({ points }: { points: EpochPoint[] }) {
+function CurveStats({ points, regression }: { points: EpochPoint[]; regression: boolean }) {
   const summary = describe(points);
+  if (regression) {
+    return (
+      <dl className="curve__stats">
+        <div>
+          <dt>Pérdida inicial</dt>
+          <dd>{formatAxisAmount(summary.firstLoss)}</dd>
+        </div>
+        <div>
+          <dt>Pérdida final</dt>
+          <dd>
+            {formatAxisAmount(summary.lastLoss)}{' '}
+            <Trend direction={summary.lossDropPct > 0 ? 'down' : 'flat'}>
+              {signed(-Math.abs(summary.lossDropPct))} %
+            </Trend>
+          </dd>
+        </div>
+        <div>
+          <dt>MAE inicial → final</dt>
+          <dd>
+            {formatErrorAmount(summary.firstMae)} → {formatErrorAmount(summary.lastMae)}
+          </dd>
+        </div>
+        <div>
+          <dt>MAE validación</dt>
+          <dd>{formatErrorAmount(summary.lastValMae)}</dd>
+        </div>
+        <div>
+          <dt>Brecha val − ent</dt>
+          <dd>{signed(summary.maeGap, Math.abs(summary.maeGap) >= 100 ? 0 : 3)}</dd>
+        </div>
+      </dl>
+    );
+  }
   return (
     <dl className="curve__stats">
       <div>

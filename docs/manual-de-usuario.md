@@ -37,9 +37,9 @@ Lo que puedes hacer depende de tu rol **en cada proyecto**. Los botones que tu r
 
 Resumen de todo lo que tienes accesible.
 
-- **Indicadores:** proyectos activos, entrenamientos en ejecución, modelos aprobados y mejor exactitud validada.
-- **Entrenamientos en ejecución:** cada trabajo activo con su época, pérdida y métricas, que se actualizan solos.
-- **Pérdida y ganancia por modelo:** curva de cada trabajo completado. Una brecha creciente entre validación y entrenamiento indica sobreajuste.
+- **Indicadores:** proyectos activos, entrenamientos en ejecución, modelos aprobados y mejor exactitud validada (solo entre modelos de clasificación).
+- **Entrenamientos en ejecución:** cada trabajo activo con su época, pérdida y métricas, que se actualizan solos. En regresión se muestra el MAE en lugar de la exactitud.
+- **Curva por modelo:** pérdida en el eje izquierdo y, en el derecho, la exactitud (clasificación) o el error absoluto medio (regresión). Una brecha creciente entre validación y entrenamiento indica sobreajuste.
 - **Estado del sistema:** API, workers disponibles, base de datos y almacenamiento.
 
 El entrenamiento continúa en el servidor aunque cierres esta pantalla o el navegador.
@@ -121,12 +121,19 @@ Si un trabajo falla, el motivo aparece en lenguaje claro. Por ejemplo, *"El work
 
 ## M07 · Evaluación y métricas
 
-Para trabajos de clasificación completados:
+Muestra cada trabajo completado, evaluado sobre la partición de prueba. Lo que se ve depende de la tarea:
 
-- **Indicadores de prueba:** F1 macro, exactitud balanceada, pérdida de prueba y latencia de inferencia (p95), con la diferencia frente a la ejecución anterior.
-- **Pérdida y métricas por época:** entrenamiento (línea continua) y validación (discontinua). Se pueden superponer dos ejecuciones.
-- **Matriz de confusión** de la partición de prueba, con precisión y recall por clase.
-- **Comparación de ejecuciones** del mismo proyecto.
+| | Clasificación | Regresión |
+|---|---|---|
+| Indicadores | F1 macro, exactitud balanceada, pérdida de prueba | R², RMSE y MAE (en las unidades del objetivo) |
+| Curvas por época | Pérdida, exactitud y F1 macro | Pérdida (MSE) y MAE |
+| Evaluación final | Matriz de confusión con precisión y recall por clase | Errores de predicción con su lectura (por ejemplo, si dominan unos pocos errores grandes) |
+
+En ambos casos:
+
+- Cada indicador muestra la diferencia frente a la ejecución anterior, junto con la latencia de inferencia (p95).
+- Las curvas separan entrenamiento (línea continua) y validación (discontinua), y se pueden superponer dos ejecuciones.
+- La **comparación de ejecuciones** incluye solo las de la misma tarea: accuracy y R² no se miden en la misma escala.
 - **Registrar observación:** deja constancia de limitaciones, observaciones o riesgos antes de aprobar una versión. Los revisores las marcan como revisadas.
 
 La partición de prueba nunca interviene en el entrenamiento.
@@ -156,6 +163,7 @@ Puedes dejar una **nota de revisión**, que queda en el historial.
 Arma el informe de un proyecto en cuatro secciones: **ficha del proyecto**, **resumen de arquitectura**, **historial de entrenamiento** y avisos.
 
 - Elige el proyecto, el rango de fechas y las secciones.
+- La **mejor ejecución** se elige por la mayor exactitud de validación en clasificación, o por el menor MAE de validación en regresión.
 - **Exportar CSV o PDF** (owner, ingeniero o revisor). La exportación queda registrada con su huella digital. Si tu rol no permite ver un campo, aparece enmascarado.
 
 ## M10 · Administración y seguridad

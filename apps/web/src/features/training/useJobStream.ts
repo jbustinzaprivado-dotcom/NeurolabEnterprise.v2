@@ -55,9 +55,16 @@ export function useJobStream(jobId: string | null, onTransition?: () => void): J
             valLoss: num(data.val_loss),
             accuracy: num(data.accuracy),
             valAccuracy: num(data.val_accuracy),
+            metrics: Object.fromEntries(
+              Object.entries(data).filter((entry): entry is [string, number] => typeof entry[1] === 'number'),
+            ),
           };
           setPoints((current) => [...current.filter((item) => item.epoch !== point.epoch), point]);
-          const accuracy = data.val_accuracy !== undefined ? ` · val_acc ${(num(data.val_accuracy) * 100).toFixed(1)} %` : '';
+          const accuracy =
+            data.val_accuracy !== undefined ? ` · val_acc ${(num(data.val_accuracy) * 100).toFixed(1)} %`
+              : data.val_mae !== undefined
+                ? ` · MAE val ${num(data.val_mae).toLocaleString('es-ES', { maximumFractionDigits: 3 })}`
+                : '';
           setLogs((current) => [
             ...current,
             { at, level: 'info', source: 'worker', text: `Época ${point.epoch}/${num(data.epochs)} · loss ${point.loss.toFixed(4)}${accuracy}` },

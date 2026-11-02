@@ -1,6 +1,8 @@
 import type { TrainingJob } from '@/types/domain';
 import { familyMeta } from '@/lib/nav';
-import { formatCountdown, formatDuration, formatLoss, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatCountdown, formatDuration, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatAxisAmount } from '@/components/ui/DataViz';
+import { formatErrorAmount } from '@/lib/jobMetrics';
 import { Panel } from '@/components/ui/Panel';
 import { Chip, StatusChip } from '@/components/ui/Chip';
 import { ProgressBar } from '@/components/ui/Progress';
@@ -56,10 +58,18 @@ function ActiveRow({
 
       <div className="run__side">
         <div className="run__metrics">
-          <Metric label="loss" value={formatLoss(job.loss)} />
-          <Metric label="accuracy" value={formatRate(job.accuracy)} />
-          <Metric label="val loss" value={formatLoss(job.valLoss)} />
-          <Metric label="val acc." value={formatRate(job.valAccuracy)} />
+          <Metric label="loss" value={formatAxisAmount(job.loss)} />
+          {job.task === 'regression' ? (
+            <Metric label="MAE" value={job.mae !== null ? formatErrorAmount(job.mae) : '—'} />
+          ) : (
+            <Metric label="accuracy" value={formatRate(job.accuracy)} />
+          )}
+          <Metric label="val loss" value={formatAxisAmount(job.valLoss)} />
+          {job.task === 'regression' ? (
+            <Metric label="val MAE" value={job.valMae !== null ? formatErrorAmount(job.valMae) : '—'} />
+          ) : (
+            <Metric label="val acc." value={formatRate(job.valAccuracy)} />
+          )}
         </div>
 
         {job.cancelRequested ? (

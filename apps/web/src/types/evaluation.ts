@@ -3,7 +3,9 @@
 
 import type { JobStatus, NetworkFamily } from '@/types/domain';
 
-export type EvaluationMetric = 'loss' | 'accuracy' | 'f1';
+export type EvaluationMetric = 'loss' | 'accuracy' | 'f1' | 'mae';
+
+export type EvaluationTask = 'classification' | 'regression';
 
 export type EvaluationSplit = 'TEST' | 'VALIDATION';
 
@@ -28,6 +30,9 @@ export interface EpochMetrics {
   valAccuracy: number;
   f1: number;
   valF1: number;
+  /** Error absoluto medio por época; solo en regresión (null en clasificación). */
+  mae: number | null;
+  valMae: number | null;
 }
 
 /** Métricas agregadas de una clase a partir de la matriz de confusión. */
@@ -57,6 +62,11 @@ export interface EvaluationSummary {
 export interface EvaluationRun {
   id: string;
   jobId: string;
+  task: EvaluationTask;
+  /** Columna objetivo: da las unidades de RMSE y MAE en regresión. */
+  target: string;
+  /** Regresión: R², RMSE y MAE sobre la partición de prueba. */
+  testMetrics: { r2?: number; rmse?: number; mae?: number };
   name: string;
   project: string;
   dataset: string;
@@ -76,7 +86,7 @@ export interface EvaluationRun {
   samples: number;
   testLoss: number;
   latencyP95Ms: number;
-  /** Filas = clase real; columnas = clase predicha. */
+  /** Filas = clase real; columnas = clase predicha. Vacía en regresión. */
   confusion: number[][];
   /** Etiquetas en el orden de la matriz; las publica el worker al evaluar. */
   classes?: EvaluationClass[];

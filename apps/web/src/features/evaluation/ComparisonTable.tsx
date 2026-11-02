@@ -3,6 +3,7 @@ import { familyMeta } from '@/lib/nav';
 import { formatLoss, formatNumber, formatRate } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
 import { metricsFromConfusion, signed } from '@/features/evaluation/model';
+import { formatError, formatR2 } from '@/features/model-registry/model';
 
 export interface ComparisonTableProps {
   runs: EvaluationRun[];
@@ -23,22 +24,36 @@ export function ComparisonTable({
   onToggleCompare,
 }: ComparisonTableProps) {
   const current = runs.find((run) => run.id === currentId) ?? runs[0];
-  const currentF1 = metricsFromConfusion(current.confusion).summary.f1;
+  /* Todas las filas son de la misma tarea que la ejecución evaluada (lo filtra EvaluationPage). */
+  const regression = current.task === 'regression';
+  const currentF1 = regression ? 0 : metricsFromConfusion(current.confusion).summary.f1;
+  const currentR2 = current.testMetrics.r2 ?? 0;
 
   return (
     <div className="ev-table-wrap">
       <table className="ev-table">
         <caption className="u-sr-only">
-          Comparación de las ejecuciones evaluadas del proyecto. El F1 delta se calcula contra{' '}
-          {current.id}.
+          Comparación de las ejecuciones evaluadas del proyecto. El delta de {regression ? 'R²' : 'F1'} se calcula
+          contra {current.id}.
         </caption>
         <thead>
           <tr>
             <th scope="col">Ejecución</th>
-            <th scope="col">F1 macro</th>
-            <th scope="col">Exactitud</th>
-            <th scope="col">Pérdida prueba</th>
-            <th scope="col">Δ F1</th>
+            {regression ? (
+              <>
+                <th scope="col">R²</th>
+                <th scope="col">RMSE</th>
+                <th scope="col">MAE</th>
+                <th scope="col">Δ R²</th>
+              </>
+            ) : (
+              <>
+                <th scope="col">F1 macro</th>
+                <th scope="col">Exactitud</th>
+                <th scope="col">Pérdida prueba</th>
+                <th scope="col">Δ F1</th>
+              </>
+            )}
             <th scope="col">Mejor época</th>
             <th scope="col">p95</th>
             <th scope="col" className="ev-table__compare">
@@ -48,10 +63,10 @@ export function ComparisonTable({
         </thead>
         <tbody>
           {runs.map((run) => {
-            const summary = metricsFromConfusion(run.confusion).summary;
+            const summary = regression ? null : metricsFromConfusion(run.confusion).summary;
             const isCurrent = run.id === currentId;
             const isCompared = compareIds.includes(run.id);
-            const delta = (summary.f1 - currentF1) * 100;
+            const delta = summary ? (summary.f1 - currentF1) * 100 : (run.testMetrics.r2 ?? 0) - currentR2;
             const disabled = isCurrent || (!isCompared && compareIds.length >= MAX_COMPARISONS);
 
             return (
@@ -77,16 +92,26 @@ export function ComparisonTable({
                     </span>
                   </span>
                 </th>
-                <td data-numeric>{formatRate(summary.f1)}</td>
-                <td data-numeric>{formatRate(summary.accuracy)}</td>
-                <td data-numeric>{formatLoss(run.testLoss)}</td>
+                {summary ? (
+                  <>
+                    <td data-numeric>{formatRate(summary.f1)}</td>
+                    <td data-numeric>{formatRate(summary.accuracy)}</td>
+                    <td data-numeric>{formatLoss(run.testLoss)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td data-numeric>{run.testMetrics.r2 !== undefined ? formatR2(run.testMetrics.r2) : '—'}</td>
+                    <td data-numeric>{run.testMetrics.rmse !== undefined ? formatError(run.testMetrics.rmse) : '—'}</td>
+                    <td data-numeric>{run.testMetrics.mae !== undefined ? formatError(run.testMetrics.mae) : '—'}</td>
+                  </>
+                )}
                 <td data-numeric>
                   {isCurrent ? (
                     <span className="ev-table__ref">referencia</span>
                   ) : (
                     <span className="ev-delta" data-good={delta >= 0}>
                       <Icon name={delta >= 0 ? 'trendingUp' : 'trendingDown'} size={12} />
-                      {signed(delta)} pts
+                      {regression ? signed(delta, 3) : `${signed(delta)} pts`}
                     </span>
                   )}
                 </td>
@@ -123,8 +148,8 @@ export function ComparisonTable({
 
       <p className="panel__note ev-table__note">
         Haga clic en una fila para evaluarla; marque hasta dos ejecuciones para superponer su
-        validación en la gráfica de aprendizaje. El Δ F1 se mide en puntos porcentuales contra{' '}
-        {current.id}.
+        validación en la gráfica de aprendizaje.{' '}
+        {regression ? 'El Δ R² se mide' : 'El Δ F1 se mide en puntos porcentuales'} contra {current.id}.
       </p>
     </div>
   );

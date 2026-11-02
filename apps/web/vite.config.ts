@@ -13,7 +13,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // NEUROLAB_API_PROXY permite apuntar a otra API (p. ej. un segundo arranque en :8001).
+        target: process.env.NEUROLAB_API_PROXY ?? 'http://localhost:8000',
         changeOrigin: true,
       },
     },

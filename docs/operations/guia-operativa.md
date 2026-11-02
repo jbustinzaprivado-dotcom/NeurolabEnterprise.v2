@@ -43,6 +43,7 @@ Toda la configuración va en variables `NEUROLAB_*`, leídas del entorno o de `.
 | `NEUROLAB_SECRET_KEY` | — | Obligatoria |
 | `NEUROLAB_SEED_DEMO` / `NEUROLAB_SEED_HISTORY` | `true` / `true` | `false` / `false` |
 | `NEUROLAB_CORS_ORIGINS` | `http://localhost:5173` | Dominio público de la web |
+| `NEUROLAB_API_PROXY` (solo `npm run dev`) | `http://localhost:8000` | — : en producción nginx hace de proxy |
 | `NEUROLAB_LOG_FORMAT` | `json` (`text` para leer en consola) | `json` |
 | `NEUROLAB_TRAINING_FAMILIES` | `FEEDFORWARD` | Se amplía cuando cada familia tenga sus pruebas |
 | `NEUROLAB_WORKER_STALE_SECONDS` | `120` | Ajustar si la base o la red tienen pausas largas |
