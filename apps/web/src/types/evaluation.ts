@@ -69,6 +69,8 @@ export interface EvaluationRun {
   testMetrics: { r2?: number; rmse?: number; mae?: number };
   name: string;
   project: string;
+  /** La API lo envía; sirve para comparar solo contra ejecuciones del mismo proyecto. */
+  projectId: string;
   dataset: string;
   datasetVersion: string;
   family: NetworkFamily;

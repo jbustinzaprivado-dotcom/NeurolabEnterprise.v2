@@ -92,7 +92,12 @@ export function EvaluationPage() {
   /* Solo se comparan ejecuciones de la misma tarea: accuracy y R² no se miden en la misma escala. */
   const peers = useMemo(() => runs.filter((run) => run.task === current?.task), [runs, current]);
   const currentIndex = current ? peers.findIndex((run) => run.id === current.id) : -1;
-  const previous = currentIndex >= 0 ? peers[currentIndex + 1] ?? null : null;
+  /* La variación de los indicadores se mide contra la ejecución anterior del mismo proyecto:
+     comparar Iris con sismos no dice nada sobre si el modelo mejoró. */
+  const previous =
+    currentIndex >= 0
+      ? peers.slice(currentIndex + 1).find((run) => run.projectId === current?.projectId) ?? null
+      : null;
   const chartMetrics = CHART_METRICS_BY_TASK[current?.task ?? 'classification'];
   const activeMetric: EvaluationMetric = chartMetrics.includes(metric) ? metric : 'loss';
 
