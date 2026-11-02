@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import tempfile
+import threading
 import time
 import traceback
 from collections.abc import Callable
@@ -19,13 +20,14 @@ import joblib
 import keras
 import numpy as np
 from sklearn import metrics as skm
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
+from app.core.config import settings
 from app.core.database import SessionLocal, utcnow
 from app.core.storage import ObjectNotFound, get_store
 from app.modules import state_machine as sm
 from app.modules.datasets import read_csv_bytes
-from app.repositories.models import ModelVersion, TrainingJob
+from app.repositories.models import ModelVersion, TrainingJob, WorkerNode
 from app.services import audit, job_events, platform_settings
 from workers.training.callbacks.progress import ProgressCallback
 from workers.training.pipelines.model_builder import build_model
@@ -34,6 +36,61 @@ from workers.training.pipelines.tabular import PreparedData, prepare
 logger = logging.getLogger("neurolab.worker")
 
 CONTENT_TYPES = {".json": "application/json", ".keras": "application/zip", ".pkl": "application/octet-stream"}
+
+
+class JobLost(Exception):
+    """El trabajo ya no es de este worker: la recuperación lo cerró mientras seguía ejecutándose."""
+
+
+class Heartbeat:
+    """Latido del trabajo en un hilo propio (§15 Recuperación).
+
+    No depende de las épocas: una época larga, la lectura de un dataset grande o el
+    registro del modelo no hacen que otro worker crea que este se cayó. Si el proceso
+    muere, el hilo muere con él y el trabajo queda huérfano para `reap_stale_jobs`.
+    """
+
+    def __init__(self, job_id: str, worker_id: str, interval: float | None = None) -> None:
+        self.job_id = job_id
+        self.worker_id = worker_id
+        self.interval = interval if interval is not None else max(1.0, settings.worker_stale_seconds / 4)
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, name=f"latido-{job_id}", daemon=True)
+
+    def beat(self) -> bool:
+        """Renueva el latido; False si el trabajo ya no está activo a nombre de este worker."""
+        now = utcnow()
+        with SessionLocal() as db:
+            owned = db.execute(
+                update(TrainingJob)
+                .where(TrainingJob.id == self.job_id, TrainingJob.worker_id == self.worker_id,
+                       TrainingJob.status.in_([sm.PREPARING, sm.RUNNING]))
+                .values(heartbeat_at=now)
+            ).rowcount
+            db.execute(update(WorkerNode).where(WorkerNode.id == self.worker_id).values(last_seen_at=now))
+            db.commit()
+        return owned == 1
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.interval):
+            try:
+                if not self.beat():
+                    return
+            except Exception:  # noqa: BLE001 — un fallo pasajero de la base no debe tumbar el entrenamiento
+                logger.warning("No se pudo registrar el latido de %s.", self.job_id, exc_info=True)
+
+    def __enter__(self) -> Heartbeat:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self._stop.set()
+        self._thread.join(timeout=5)
+
+
+def _ensure_owned(job: TrainingJob, expected: str) -> None:
+    if job.status != expected:
+        raise JobLost(job.status)
 
 
 class ControlledError(Exception):
@@ -143,6 +200,7 @@ def _register(job_id: str, model: keras.Model, data: PreparedData, evaluation: d
     """Guarda artefactos inmutables (RN-04) y cierra el trabajo como COMPLETED."""
     with SessionLocal() as db:
         job = db.get(TrainingJob, job_id)
+        _ensure_owned(job, sm.RUNNING)  # nada se sube si la recuperación ya cerró el trabajo
         arch = job.architecture
         latest = db.scalar(
             select(func.max(ModelVersion.version)).where(
@@ -214,6 +272,17 @@ def _register(job_id: str, model: keras.Model, data: PreparedData, evaluation: d
 
 def run_job(job_id: str, worker_id: str) -> str:
     """Ejecuta un trabajo ya reclamado (PREPARING) y devuelve su estado final."""
+    with Heartbeat(job_id, worker_id):
+        try:
+            return _run(job_id, worker_id)
+        except JobLost:
+            with SessionLocal() as db:
+                current = db.get(TrainingJob, job_id).status
+            logger.warning("%s ya no pertenece a %s (estado %s); se abandona sin escribir.", job_id, worker_id, current)
+            return current
+
+
+def _run(job_id: str, worker_id: str) -> str:
     try:
         with SessionLocal() as db:
             job = db.get(TrainingJob, job_id)
@@ -258,6 +327,7 @@ def run_job(job_id: str, worker_id: str) -> str:
                 notes.append(f"Entrada ajustada de {declared} a {data.input_dim} según las columnas del dataset.")
             if data.dropped:
                 notes.append(f"Columnas descartadas: {', '.join(data.dropped)}.")
+            _ensure_owned(job, sm.PREPARING)
             for note in notes:
                 job_events.log(db, job_id, note)
             if job.cancel_requested:
@@ -286,6 +356,8 @@ def run_job(job_id: str, worker_id: str) -> str:
             callbacks=callbacks, verbose=0,
         )
 
+        if progress.stop_reason == "lost":
+            raise JobLost(sm.FAILED)
         if progress.stop_reason == "cancelled":
             with SessionLocal() as db:
                 reason = db.get(TrainingJob, job_id).cancel_reason or "Cancelado por el usuario."
@@ -304,6 +376,8 @@ def run_job(job_id: str, worker_id: str) -> str:
         _register(job_id, model, data, _evaluate(model, data, params["task"]), stop_note)
         return sm.COMPLETED
 
+    except JobLost:
+        raise
     except ControlledError as exc:
         _finish(job_id, sm.FAILED, str(exc))
         return sm.FAILED

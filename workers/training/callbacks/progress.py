@@ -10,6 +10,7 @@ from typing import Any
 import keras
 
 from app.core.database import SessionLocal, utcnow
+from app.modules import state_machine as sm
 from app.repositories.models import TrainingJob, TrainingMetric, WorkerNode
 from app.services import job_events
 
@@ -43,6 +44,11 @@ class ProgressCallback(keras.callbacks.Callback):
         now = utcnow()
         with SessionLocal() as db:
             job = db.get(TrainingJob, self.job_id)
+            if job.status != sm.RUNNING or job.worker_id != self.worker_id:
+                # La recuperación cerró el trabajo (se creyó caído a este worker): no se escribe nada más.
+                self.stop_reason = "lost"
+                self.model.stop_training = True
+                return
             db.add_all(
                 TrainingMetric(job_id=self.job_id, epoch=number, metric_name=name, metric_value=value, recorded_at=now)
                 for name, value in values.items()

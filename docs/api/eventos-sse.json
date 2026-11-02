@@ -1,0 +1,434 @@
+{
+  "title": "Eventos SSE de /api/v1/training-jobs/{id}/events",
+  "description": "Cada mensaje SSE lleva `event: <nombre>` y `data: <JSON>`. Los eventos persistidos (status, metric, log) llevan además `id:` para reanudar con la cabecera Last-Event-ID.",
+  "events": {
+    "snapshot": {
+      "description": "Forma de `TrainingJob` en `apps/web/src/types/domain.ts`, más trazabilidad.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "projectId": {
+          "title": "Projectid",
+          "type": "string"
+        },
+        "architectureId": {
+          "title": "Architectureid",
+          "type": "string"
+        },
+        "architectureName": {
+          "title": "Architecturename",
+          "type": "string"
+        },
+        "architectureVersion": {
+          "title": "Architectureversion",
+          "type": "integer"
+        },
+        "family": {
+          "enum": [
+            "FEEDFORWARD",
+            "RNN",
+            "CNN",
+            "GAN"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "datasetId": {
+          "title": "Datasetid",
+          "type": "string"
+        },
+        "datasetName": {
+          "title": "Datasetname",
+          "type": "string"
+        },
+        "datasetVersion": {
+          "title": "Datasetversion",
+          "type": "integer"
+        },
+        "targetColumn": {
+          "title": "Targetcolumn",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "PREPARING",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "statusReason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Statusreason"
+        },
+        "priority": {
+          "enum": [
+            "CRITICA",
+            "ALTA",
+            "NORMAL",
+            "BAJA"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
+        "epochs": {
+          "title": "Epochs",
+          "type": "integer"
+        },
+        "epoch": {
+          "title": "Epoch",
+          "type": "integer"
+        },
+        "batch": {
+          "title": "Batch",
+          "type": "integer"
+        },
+        "optimizer": {
+          "title": "Optimizer",
+          "type": "string"
+        },
+        "learningRate": {
+          "title": "Learningrate",
+          "type": "number"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "loss": {
+          "title": "Loss",
+          "type": "number"
+        },
+        "accuracy": {
+          "title": "Accuracy",
+          "type": "number"
+        },
+        "valLoss": {
+          "title": "Valloss",
+          "type": "number"
+        },
+        "valAccuracy": {
+          "title": "Valaccuracy",
+          "type": "number"
+        },
+        "progress": {
+          "title": "Progress",
+          "type": "number"
+        },
+        "queuedAt": {
+          "format": "date-time",
+          "title": "Queuedat",
+          "type": "string"
+        },
+        "startedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Startedat"
+        },
+        "endedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Endedat"
+        },
+        "durationSeconds": {
+          "title": "Durationseconds",
+          "type": "integer"
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "ownerId": {
+          "title": "Ownerid",
+          "type": "string"
+        },
+        "cancelRequested": {
+          "title": "Cancelrequested",
+          "type": "boolean"
+        },
+        "attempt": {
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "retryOfId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retryofid"
+        },
+        "codeVersion": {
+          "title": "Codeversion",
+          "type": "string"
+        },
+        "modelVersionId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Modelversionid"
+        },
+        "errorDetail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Errordetail"
+        }
+      },
+      "required": [
+        "id",
+        "project",
+        "projectId",
+        "architectureId",
+        "architectureName",
+        "architectureVersion",
+        "family",
+        "datasetId",
+        "datasetName",
+        "datasetVersion",
+        "targetColumn",
+        "status",
+        "statusReason",
+        "priority",
+        "epochs",
+        "epoch",
+        "batch",
+        "optimizer",
+        "learningRate",
+        "seed",
+        "loss",
+        "accuracy",
+        "valLoss",
+        "valAccuracy",
+        "progress",
+        "queuedAt",
+        "startedAt",
+        "endedAt",
+        "durationSeconds",
+        "owner",
+        "ownerId",
+        "cancelRequested",
+        "attempt",
+        "retryOfId",
+        "codeVersion",
+        "modelVersionId"
+      ],
+      "title": "TrainingJobOut",
+      "type": "object"
+    },
+    "status": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "title": "Createdat",
+          "type": "string"
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "enum": [
+                "QUEUED",
+                "PREPARING",
+                "RUNNING",
+                "COMPLETED",
+                "FAILED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Previous"
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "PREPARING",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "progress": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Progress",
+          "type": "number"
+        },
+        "epoch": {
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "createdAt",
+        "previous",
+        "status",
+        "reason",
+        "progress",
+        "epoch"
+      ],
+      "title": "StatusEvent",
+      "type": "object"
+    },
+    "metric": {
+      "additionalProperties": true,
+      "description": "Fin de una época. Además de estos campos llegan las métricas de Keras de la tarea\n(`accuracy`, `val_accuracy`, `mae`, `f1`…), siempre numéricas.",
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "title": "Createdat",
+          "type": "string"
+        },
+        "epoch": {
+          "minimum": 1,
+          "title": "Epoch",
+          "type": "integer"
+        },
+        "epochs": {
+          "minimum": 1,
+          "title": "Epochs",
+          "type": "integer"
+        },
+        "progress": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Progress",
+          "type": "number"
+        },
+        "loss": {
+          "title": "Loss",
+          "type": "number"
+        },
+        "val_loss": {
+          "title": "Val Loss",
+          "type": "number"
+        }
+      },
+      "required": [
+        "createdAt",
+        "epoch",
+        "epochs",
+        "progress",
+        "loss",
+        "val_loss"
+      ],
+      "title": "MetricEvent",
+      "type": "object"
+    },
+    "log": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "title": "Createdat",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "info",
+            "warn",
+            "error",
+            "success"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "createdAt",
+        "level",
+        "message"
+      ],
+      "title": "LogEvent",
+      "type": "object"
+    },
+    "end": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "EndEvent",
+      "type": "object"
+    }
+  }
+}

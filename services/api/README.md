@@ -22,6 +22,8 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Logs estructurados (§5) | JSON por línea con `request_id`, ruta, estado, duración y usuario; se redactan tokens y contraseñas | Cumple |
 | Métricas (§5) | Prometheus en `/metrics` (solo red interna) y `infra/monitoring/prometheus.yml` | Cumple |
 | Copias de seguridad probadas (§11) | `respaldo.ps1`, `restaurar.ps1` y `probar_respaldo.ps1` en `infra/postgres` | Cumple; ejecutar tras crear la base |
+| Pruebas de contrato (§15) | `tests/contract`: la API publicada en `docs/api/openapi.json` y el esquema de cada evento SSE (`docs/api/eventos-sse.json`) se comparan con el código; los eventos de entrenamientos reales se validan contra su esquema | Cumple |
+| Pruebas de recuperación (§15) | `tests/integration/test_recovery.py`: reinicio de la API sin pérdida ni duplicados, worker caído a mitad de entrenamiento (se recupera y se reintenta), worker creído caído que vuelve sin sobrescribir, latido durante épocas largas y reclamo exclusivo. La desconexión del navegador se prueba con `Last-Event-ID` | Cumple |
 | CI (§14, §15) | GitHub Actions: pruebas contra PostgreSQL, `alembic check` y build del frontend | Cumple |
 | Docker (§5) | `infra/docker`: imágenes de API/worker y web, compose con PostgreSQL, SeaweedFS, Keycloak y Prometheus | Escrito; sin probar localmente (Docker no instalado) |
 
@@ -105,7 +107,17 @@ cd services\api
 ..\..\venv\Scripts\python.exe -m pytest
 ```
 
-Usan la base `neurolab_test` de `.env` (se borra y se vuelve a migrar en cada ejecución). Incluyen el flujo E2E con TensorFlow real, cancelación cooperativa, aislamiento entre proyectos y que el resumen de parámetros coincide con Keras.
+Usan la base `neurolab_test` de `.env` (se borra y se vuelve a migrar en cada ejecución). Incluyen el flujo E2E con TensorFlow real, cancelación cooperativa, aislamiento entre proyectos, que el resumen de parámetros coincide con Keras, contratos y recuperación ante fallos.
+
+- `tests/unit`: validación de arquitecturas, transiciones de estado, permisos y cálculo de métricas.
+- `tests/integration`: API con PostgreSQL, almacenamiento, cola, seguridad y recuperación.
+- `tests/contract`: contratos REST y SSE. Si cambias una ruta, un esquema o un evento a propósito, regenera los contratos y revisa el diff de `docs/api`:
+
+  ```
+  ..\..\venv\Scripts\python.exe scripts\exportar_contratos.py
+  ```
+
+**Recuperación del worker:** mientras entrena, el worker renueva el latido de su trabajo cada `NEUROLAB_WORKER_STALE_SECONDS / 4` segundos (30 s por defecto) en un hilo propio, sin depender de las épocas. Si el proceso muere, otro worker marca el trabajo como `FAILED` pasados 120 s y se puede reintentar; las épocas ya entrenadas siguen consultables. Si un worker al que se creía caído vuelve, abandona el trabajo sin escribir métricas ni registrar modelos.
 
 ## Endpoints (`/api/v1`)
 
