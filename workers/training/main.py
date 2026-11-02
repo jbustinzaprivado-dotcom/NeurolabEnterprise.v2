@@ -28,6 +28,7 @@ from sqlalchemy import inspect, select, update  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.core.database import SessionLocal, engine, utcnow  # noqa: E402
+from app.core.log_config import configure_logging  # noqa: E402
 from app.modules import state_machine as sm  # noqa: E402
 from app.repositories.models import TrainingJob, WorkerNode  # noqa: E402
 from app.services import job_events  # noqa: E402
@@ -113,7 +114,7 @@ def wait_for_schema() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    configure_logging("worker")
     from workers.training.callbacks.progress import shutdown_requested
 
     def on_signal(*_):
@@ -140,7 +141,7 @@ def main() -> None:
                     logger.info("Retención aplicada: %s.", counts)
         result = process_next_job(worker_id)
         if result:
-            logger.info("%s terminó en %s.", *result)
+            logger.info("%s terminó en %s.", *result, extra={"job_id": result[0], "status": result[1]})
         else:
             shutdown_requested.wait(settings.worker_poll_seconds)
 

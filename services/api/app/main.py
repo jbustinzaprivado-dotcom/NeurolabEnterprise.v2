@@ -9,25 +9,32 @@ from __future__ import annotations
 import logging
 import sys
 import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import SessionLocal, migrate
+from app.core.log_config import configure_logging
+from app.core.metrics import http_latency, http_requests, rate_limited, registry
 from app.core.rate_limit import limit_cache, limiter
 from app.core.security import decode_token
 from app.services import audit, platform_settings
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+configure_logging("api")
 logger = logging.getLogger("neurolab.api")
+access_log = logging.getLogger("neurolab.access")
+
+LOCAL_CLIENTS = {"127.0.0.1", "::1", "localhost", "testclient"}
 
 
 @asynccontextmanager
@@ -57,8 +64,23 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID", "Retry-After"],
 )
 app.include_router(api_router, prefix=settings.api_prefix)
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics(request: Request) -> Response:
+    """Métricas Prometheus (§5). Solo desde la propia máquina salvo NEUROLAB_METRICS_REMOTE=true."""
+    client = request.client.host if request.client else ""
+    if not settings.metrics_remote and client not in LOCAL_CLIENTS:
+        return JSONResponse(status_code=403, content={"detail": "Métricas disponibles solo desde la red interna."})
+    return Response(generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
+
+
+def _subject(request: Request) -> str | None:
+    header = request.headers.get("Authorization", "")
+    return decode_token(header[7:].strip()) if header.lower().startswith("bearer ") else None
 
 
 @app.middleware("http")
@@ -94,20 +116,55 @@ async def enforce_rate_limit(request: Request, call_next):
 
     ip = request.client.host if request.client else "?"
     if path.endswith(("/auth/login", "/auth/dev-login")):
-        key, limit = f"login:{ip}", settings.login_attempts_per_minute
+        scope, key, limit = "login", f"login:{ip}", settings.login_attempts_per_minute
     else:
-        header = request.headers.get("Authorization", "")
-        subject = decode_token(header[7:].strip()) if header.lower().startswith("bearer ") else None
-        key, limit = f"user:{subject or 'ip:' + ip}", _current_rate_limit()
+        subject = _subject(request)
+        scope, key, limit = "user", f"user:{subject or 'ip:' + ip}", _current_rate_limit()
 
     wait = limiter.check(key, limit)
     if wait:
+        rate_limited.labels(scope).inc()
         return JSONResponse(
             status_code=429,
             content={"detail": f"Demasiadas solicitudes: el límite es {limit} por minuto. Reintenta en {wait} s."},
             headers={"Retry-After": str(wait)},
         )
     return await call_next(request)
+
+
+@app.middleware("http")
+async def access_and_metrics(request: Request, call_next):
+    """Capa más externa: identificador de petición, log de acceso estructurado y métricas.
+
+    Se registra la ruta sin la query y el usuario por su id; nunca cabeceras ni cuerpos (§11).
+    """
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+    started = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        elapsed = time.perf_counter() - started
+        route = request.scope.get("route")
+        template = getattr(route, "path", "sin_ruta")
+        # Las rutas del router v1 llegan sin su prefijo; se completa para que la métrica sea legible.
+        if request.url.path.startswith(settings.api_prefix) and not template.startswith(settings.api_prefix):
+            template = settings.api_prefix + template
+        http_requests.labels(request.method, template, str(status)).inc()
+        http_latency.labels(request.method, template).observe(elapsed)
+        if template != "/metrics":
+            access_log.info(
+                "%s %s %s", request.method, request.url.path, status,
+                extra={
+                    "request_id": request_id, "method": request.method, "path": request.url.path,
+                    "route": template, "status": status, "duration_ms": round(elapsed * 1000, 1),
+                    "user": _subject(request) or ("dev" if settings.auth_dev_bypass else None),
+                    "ip": request.client.host if request.client else None,
+                },
+            )
 
 
 @app.exception_handler(Exception)
@@ -120,4 +177,4 @@ async def unhandled(_: Request, exc: Exception) -> JSONResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host=settings.host, port=settings.port, log_config=None)

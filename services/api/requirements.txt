@@ -18,6 +18,9 @@ joblib
 # Motor de entrenamiento (worker)
 tensorflow
 
+# Operación (§5): métricas Prometheus
+prometheus-client==0.23.1
+
 # Pruebas
 pytest
 httpx

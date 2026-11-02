@@ -1,0 +1,9 @@
+# Prometheus (§5 Operación): recoge las métricas de la API cada 15 s.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: neurolab-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]

@@ -19,7 +19,11 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Política de retención (§11) | Auditoría, métricas por época y artefactos de modelos retirados; el worker la aplica cada hora y M10 puede lanzarla a mano | Cumple |
 | Cifrado en tránsito (§11) | HTTP en local; HTTPS va con el despliegue | Pendiente (fase 6) |
 | TanStack Query (§5) | Caché compartida en `apps/web/src/lib/api/queryClient.ts`; las mutaciones invalidan las claves afectadas | Cumple |
-| Docker, CI/CD, logs, respaldos (§5, §11, §14) | No implementado | Pendiente |
+| Logs estructurados (§5) | JSON por línea con `request_id`, ruta, estado, duración y usuario; se redactan tokens y contraseñas | Cumple |
+| Métricas (§5) | Prometheus en `/metrics` (solo red interna) y `infra/monitoring/prometheus.yml` | Cumple |
+| Copias de seguridad probadas (§11) | `respaldo.ps1`, `restaurar.ps1` y `probar_respaldo.ps1` en `infra/postgres` | Cumple; ejecutar tras crear la base |
+| CI (§14, §15) | GitHub Actions: pruebas contra PostgreSQL, `alembic check` y build del frontend | Cumple |
+| Docker (§5) | `infra/docker`: imágenes de API/worker y web, compose con PostgreSQL y Prometheus | Escrito; sin probar localmente (Docker no instalado) |
 
 Donde el documento no especifica: la cola de trabajos usa la propia tabla `training_jobs` (el worker reclama con UPDATE condicional) y los datasets admitidos son CSV.
 
@@ -47,6 +51,23 @@ Con la base vacía, la API carga datos demo no sensibles definidos en `app/demo/
 - **Datasets:** 7 CSV generados dentro del proyecto. Son sintéticos o vienen incluidos en scikit-learn; ninguna fila corresponde a una persona real.
 - **Arquitecturas:** 15. Las Feedforward entrenan; las RNN, CNN y GAN quedan documentadas (§18).
 - **Historial (solo en desarrollo, `NEUROLAB_SEED_HISTORY`):** unos diez entrenamientos que la semilla deja en cola y el worker ejecuta de verdad al arrancar (alrededor de 1 minuto). Incluyen uno cancelado y uno con parada temprana. Las pruebas no cargan este historial.
+
+## Operación (§5, §11)
+
+- **Logs:** JSON por línea (`NEUROLAB_LOG_FORMAT=text` para consola legible). Cada respuesta lleva `X-Request-ID` para seguir una petición en los logs.
+- **Métricas:** `GET http://localhost:8000/metrics` (Prometheus). Responde solo desde la propia máquina, salvo con `NEUROLAB_METRICS_REMOTE=true`.
+- **Respaldos** (desde la raíz):
+  ```
+  powershell -ExecutionPolicy Bypass -File infra\postgres\respaldo.ps1
+  powershell -ExecutionPolicy Bypass -File infra\postgres\probar_respaldo.ps1
+  powershell -ExecutionPolicy Bypass -File infra\postgres\restaurar.ps1 -Respaldo <carpeta>
+  ```
+  Quedan en `data/backups/<fecha>`: volcado de PostgreSQL, ZIP de datasets y modelos, y manifiesto con checksums. Se conservan los 7 últimos.
+- **Docker:** copia `infra/docker/.env.example` como `infra/docker/.env`, y luego:
+  ```
+  docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
+  ```
+  Web en http://localhost:8080 y Prometheus en http://localhost:9090.
 
 ## Ejecutar
 

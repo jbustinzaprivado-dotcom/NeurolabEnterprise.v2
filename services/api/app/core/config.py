@@ -76,6 +76,13 @@ class Settings:
     max_active_jobs_per_project: int = field(default_factory=lambda: int(_env("MAX_ACTIVE_JOBS_PER_PROJECT", "4")))
     max_job_seconds: int = field(default_factory=lambda: int(_env("MAX_JOB_SECONDS", "1800")))
     storage_limit_gb: float = field(default_factory=lambda: float(_env("STORAGE_LIMIT_GB", "20")))
+    # Operación (§5): logs JSON por defecto; "text" para leerlos cómodamente en consola.
+    log_format: str = field(default_factory=lambda: _env("LOG_FORMAT", "json"))
+    log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
+    metrics_remote: bool = field(default_factory=lambda: _env_bool("METRICS_REMOTE", False))
+    # En contenedores la API escucha en 0.0.0.0; en local, solo en la propia máquina.
+    host: str = field(default_factory=lambda: _env("HOST", "127.0.0.1"))
+    port: int = field(default_factory=lambda: int(_env("PORT", "8000")))
     # Límites de tasa y bloqueo de cuentas (§11).
     rate_limit_per_minute: int = field(default_factory=lambda: int(_env("RATE_LIMIT_PER_MINUTE", "600")))
     login_attempts_per_minute: int = field(default_factory=lambda: int(_env("LOGIN_ATTEMPTS_PER_MINUTE", "10")))

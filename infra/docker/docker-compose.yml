@@ -1,0 +1,68 @@
+# Despliegue completo con Docker (§5 Operación, §14 fase 6).
+#
+#   docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
+#
+# Copia infra/docker/.env.example como infra/docker/.env y rellena las claves.
+# Web: http://localhost:8080 · Prometheus: http://localhost:9090
+
+name: neurolab
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: neurolab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en infra/docker/.env}
+      POSTGRES_DB: neurolab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neurolab -d neurolab"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: { context: ../.., dockerfile: infra/docker/python.Dockerfile }
+    environment: &backend-env
+      NEUROLAB_ENV: ${NEUROLAB_ENV:-production}
+      NEUROLAB_DATABASE_URL: postgresql+psycopg2://neurolab:${POSTGRES_PASSWORD}@db:5432/neurolab
+      NEUROLAB_SECRET_KEY: ${NEUROLAB_SECRET_KEY:?Define NEUROLAB_SECRET_KEY en infra/docker/.env}
+      NEUROLAB_AUTH_DEV_BYPASS: "false"
+      NEUROLAB_SEED_DEMO: ${NEUROLAB_SEED_DEMO:-true}
+      NEUROLAB_SEED_HISTORY: "false"
+      NEUROLAB_CORS_ORIGINS: http://localhost:8080
+      NEUROLAB_METRICS_REMOTE: "true"
+    volumes:
+      - artefactos:/data
+    depends_on:
+      db: { condition: service_healthy }
+    expose: ["8000"]
+
+  worker:
+    build: { context: ../.., dockerfile: infra/docker/python.Dockerfile }
+    command: ["python", "workers/training/main.py"]
+    environment: *backend-env
+    volumes:
+      - artefactos:/data
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      disable: true
+
+  web:
+    build: { context: ../.., dockerfile: infra/docker/web.Dockerfile }
+    ports: ["8080:80"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  artefactos:

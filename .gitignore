@@ -12,6 +12,7 @@ __pycache__/
 data/*.db
 data/*.db-*
 data/logs/
+data/backups/
 data/uploads/*
 !data/uploads/.gitkeep
 data/models/*
