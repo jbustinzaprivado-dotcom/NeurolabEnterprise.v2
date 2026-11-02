@@ -52,7 +52,12 @@ export function ArchitecturesPage() {
     () => catalog.projects.filter((project) => project.permissions.includes('architecture.write')),
     [catalog.projects],
   );
-  const targetProject = writableProjects.find((project) => project.id === targetProjectId) ?? writableProjects[0] ?? null;
+  // Por defecto, el primer proyecto no archivado: un archivado se conserva para trazabilidad.
+  const targetProject =
+    writableProjects.find((project) => project.id === targetProjectId) ??
+    writableProjects.find((project) => project.status !== 'ARCHIVED') ??
+    writableProjects[0] ??
+    null;
   const savedVersions = useMemo(
     () =>
       catalog.architectures
@@ -399,6 +404,7 @@ export function ArchitecturesPage() {
               {writableProjects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name} · {project.id}
+                  {project.status === 'ARCHIVED' ? ' · archivado' : ''}
                 </option>
               ))}
             </select>

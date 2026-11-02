@@ -1,3 +1,4 @@
+import { formatNumber } from '@/lib/format';
 /* Modelo del M04 · Diseñador de arquitecturas.
    Capas, formas, parámetros, validación y plantillas por familia de red. */
 
@@ -307,7 +308,8 @@ export function formatShape(shape: number[]): string {
 }
 
 export function formatParams(value: number): string {
-  return Math.max(0, Math.round(value)).toLocaleString('es-PE');
+  // Mismo formato que el resto de la plataforma (punto de miles: 52.650).
+  return formatNumber(Math.max(0, Math.round(value)));
 }
 
 function shapeSize(shape: number[]): number {
