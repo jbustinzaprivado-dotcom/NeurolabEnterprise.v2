@@ -1,4 +1,4 @@
-# Prepara PostgreSQL local para NeuroLab (§5) y Keycloak (§11), y deja la configuración en .env.
+﻿# Prepara PostgreSQL local para NeuroLab (§5) y Keycloak (§11), y deja la configuración en .env.
 #
 #   powershell -ExecutionPolicy Bypass -File infra\postgres\crear_base.ps1
 #
@@ -46,14 +46,14 @@ BEGIN
   END IF;
 END
 `$`$;
-"@
+"@ + "`n"
 }
 
 function Database-Sql([string]$Database, [string]$Owner) {
     return @"
 SELECT 'CREATE DATABASE $Database OWNER $Owner ENCODING ''UTF8'' TEMPLATE template0'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$Database')\gexec
-"@
+"@ + "`n"
 }
 
 $sql = ""

@@ -1,4 +1,4 @@
-# Arranca Keycloak (proveedor de identidad, §11) con el reino de NeuroLab.
+﻿# Arranca Keycloak (proveedor de identidad, §11) con el reino de NeuroLab.
 #
 #   powershell -ExecutionPolicy Bypass -File infra\keycloak\iniciar.ps1
 #

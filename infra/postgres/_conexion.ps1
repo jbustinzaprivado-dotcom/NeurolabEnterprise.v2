@@ -1,4 +1,4 @@
-# Utilidades comunes de los scripts de respaldo: lee la conexión de .env sin mostrar la clave.
+﻿# Utilidades comunes de los scripts de respaldo: lee la conexión de .env sin mostrar la clave.
 
 $Script:Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $Script:PgBin = "C:\Program Files\PostgreSQL\18\bin"

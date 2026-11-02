@@ -1,4 +1,4 @@
-# Prueba de restauración (§11: "copias de seguridad probadas").
+﻿# Prueba de restauración (§11: "copias de seguridad probadas").
 #
 #   powershell -ExecutionPolicy Bypass -File infra\postgres\probar_respaldo.ps1
 #

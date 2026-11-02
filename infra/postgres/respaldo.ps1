@@ -1,4 +1,4 @@
-# Respaldo completo de NeuroLab (§11): base PostgreSQL + datasets y artefactos de modelos.
+﻿# Respaldo completo de NeuroLab (§11): base PostgreSQL + datasets y artefactos de modelos.
 #
 #   powershell -ExecutionPolicy Bypass -File infra\postgres\respaldo.ps1 [-Conservar 7]
 #

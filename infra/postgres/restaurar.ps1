@@ -1,4 +1,4 @@
-# Restaura un respaldo de NeuroLab (§11).
+﻿# Restaura un respaldo de NeuroLab (§11).
 #
 #   powershell -ExecutionPolicy Bypass -File infra\postgres\restaurar.ps1 -Respaldo 20261102-103000 [-Base neurolab] [-SinArchivos]
 #
