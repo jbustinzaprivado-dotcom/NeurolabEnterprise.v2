@@ -270,6 +270,27 @@ export const GLOSSARY: GlossaryTerm[] = [
     related: ['RNN', 'Capa'],
   },
   {
+    term: 'RNN (red recurrente)',
+    category: 'Estructura',
+    definition:
+      'Red con un estado interno que pasa de un paso al siguiente, así procesa secuencias donde importa el orden. LSTM y GRU son variantes que conservan memoria en secuencias largas.',
+    related: ['Feedforward', 'Saturación'],
+  },
+  {
+    term: 'CNN (red convolucional)',
+    category: 'Estructura',
+    definition:
+      'Red que aplica filtros pequeños sobre regiones vecinas de una imagen o señal; reutiliza los mismos pesos en toda la entrada para detectar patrones locales. El pooling reduce la resolución entre etapas.',
+    related: ['Tensor de pesos', 'Capa densa (Dense)'],
+  },
+  {
+    term: 'GAN (red generativa adversaria)',
+    category: 'Estructura',
+    definition:
+      'Dos redes que se entrenan compitiendo: un generador produce muestras sintéticas y un discriminador intenta distinguirlas de las reales, hasta que las sintéticas imitan la distribución de los datos.',
+    related: ['Pérdida', 'Feedforward'],
+  },
+  {
     term: 'Peso',
     category: 'Parámetros',
     definition:
@@ -344,6 +365,20 @@ export const GLOSSARY: GlossaryTerm[] = [
     definition:
       'Paso con el que el optimizador actualiza los pesos. Demasiado grande impide converger; demasiado pequeño alarga el entrenamiento.',
     related: ['Optimizador', 'Gradiente'],
+  },
+  {
+    term: 'Gradiente',
+    category: 'Entrenamiento',
+    definition:
+      'Vector de derivadas de la pérdida respecto a cada peso: indica en qué dirección y cuánto cambia el error al mover ese peso. Lo calcula la retropropagación.',
+    related: ['Retropropagación', 'Optimizador'],
+  },
+  {
+    term: 'Optimizador',
+    category: 'Entrenamiento',
+    definition:
+      'Algoritmo que usa el gradiente para actualizar los pesos en cada lote. SGD da pasos proporcionales al gradiente; Adam, AdamW y RMSprop ajustan el paso de cada peso según su historial.',
+    related: ['Tasa de aprendizaje', 'Gradiente'],
   },
 ];
 
