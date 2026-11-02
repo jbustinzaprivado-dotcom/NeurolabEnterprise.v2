@@ -18,9 +18,13 @@ joblib
 # Motor de entrenamiento (worker)
 tensorflow
 
+# Almacenamiento de objetos S3 (§5): MinIO o AWS
+boto3==1.40.40
+
 # Operación (§5): métricas Prometheus
 prometheus-client==0.23.1
 
 # Pruebas
 pytest
 httpx
+moto[s3]==5.1.13

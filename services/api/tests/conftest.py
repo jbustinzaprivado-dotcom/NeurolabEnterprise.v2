@@ -73,6 +73,13 @@ def _fresh_rate_limits():
 
 @pytest.fixture(scope="session")
 def client():
+    # Con NEUROLAB_STORAGE_BACKEND=s3 (la CI usa MinIO) el bucket de pruebas se vacía al empezar.
+    from app.core.storage import get_store
+
+    store = get_store()
+    if store.backend == "s3":
+        for prefix in ("uploads", "models"):
+            store.delete_prefix(prefix)
     with TestClient(app) as test_client:
         yield test_client
     shutil.rmtree(_DATA_DIR, ignore_errors=True)

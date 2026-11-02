@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import SessionLocal, migrate
 from app.core.security import hash_password
+from app.core.storage import get_store
 from app.demo.catalog import PROJECTS, USERS, DemoProject
 from app.modules import state_machine as sm
 from app.modules.architecture import validate_architecture
@@ -80,9 +81,7 @@ def _seed_project(db: Session, spec: DemoProject, with_history: bool) -> int:
         db.add(dataset)
         db.flush()
         dataset.storage_key = f"uploads/{project.id}/{dataset.id}.csv"
-        path = settings.data_dir / dataset.storage_key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
+        get_store().put(dataset.storage_key, content, "text/csv")
         datasets[item.name] = dataset
 
     architectures: dict[str, Architecture] = {}

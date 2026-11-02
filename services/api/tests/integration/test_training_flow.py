@@ -146,18 +146,19 @@ def test_foreign_user_cannot_read_or_cancel_job(client, iris):
     client.post(f"{API}/training-jobs/{job_id}/cancel", headers=ANA)
 
 
-def test_missing_dataset_file_fails_with_controlled_message(client, iris, tmp_path):
-    from app.core.config import settings
+def test_missing_dataset_file_fails_with_controlled_message(client, iris):
+    from app.core.storage import get_store
 
     job_id = launch(client, iris, epochs=2).json()["id"]
     with SessionLocal() as db:
-        path = settings.data_dir / db.get(TrainingJob, job_id).dataset.storage_key
-    backup = tmp_path / "iris.csv"
-    path.rename(backup)
+        key = db.get(TrainingJob, job_id).dataset.storage_key
+    store = get_store()
+    content = store.get(key)
+    store.delete(key)
     try:
         assert process_next_job(WORKER) == (job_id, "FAILED")
     finally:
-        backup.rename(path)
+        store.put(key, content, "text/csv")
     job = client.get(f"{API}/training-jobs/{job_id}", headers=ANA).json()
     assert job["statusReason"] == "El archivo del dataset no está en el almacenamiento."
     assert client.get(f"{API}/dashboard", headers=ANA).json()["alerts"][0]["severity"] == "high"

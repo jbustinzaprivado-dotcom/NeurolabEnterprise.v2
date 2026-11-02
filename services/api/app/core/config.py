@@ -76,6 +76,13 @@ class Settings:
     max_active_jobs_per_project: int = field(default_factory=lambda: int(_env("MAX_ACTIVE_JOBS_PER_PROJECT", "4")))
     max_job_seconds: int = field(default_factory=lambda: int(_env("MAX_JOB_SECONDS", "1800")))
     storage_limit_gb: float = field(default_factory=lambda: float(_env("STORAGE_LIMIT_GB", "20")))
+    # Almacenamiento de objetos (§5): "s3" (MinIO/AWS) o "local" (carpeta data/, desarrollo).
+    storage_backend: str = field(default_factory=lambda: _env("STORAGE_BACKEND", "local"))
+    s3_endpoint: str = field(default_factory=lambda: _env("S3_ENDPOINT", ""))
+    s3_bucket: str = field(default_factory=lambda: _env("S3_BUCKET", "neurolab"))
+    s3_access_key: str = field(default_factory=lambda: _env("S3_ACCESS_KEY", ""))
+    s3_secret_key: str = field(default_factory=lambda: _env("S3_SECRET_KEY", ""))
+    s3_region: str = field(default_factory=lambda: _env("S3_REGION", "us-east-1"))
     # Operación (§5): logs JSON por defecto; "text" para leerlos cómodamente en consola.
     log_format: str = field(default_factory=lambda: _env("LOG_FORMAT", "json"))
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
@@ -132,6 +139,8 @@ class Settings:
             if self.seed_history:
                 raise RuntimeError("NEUROLAB_SEED_HISTORY no puede estar activo en producción.")
             self.resolved_secret_key  # noqa: B018  exige NEUROLAB_SECRET_KEY
+            if self.storage_backend != "s3":
+                raise RuntimeError("En producción los archivos van a un almacén de objetos: NEUROLAB_STORAGE_BACKEND=s3 (§5).")
 
     def ensure_dirs(self) -> None:
         for path in (self.uploads_dir, self.models_dir, self.logs_dir):

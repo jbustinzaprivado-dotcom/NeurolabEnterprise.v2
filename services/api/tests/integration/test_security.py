@@ -1,12 +1,12 @@
 """Seguridad (§11): límites de tasa, bloqueo de cuentas, retención y configuración de producción."""
 
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 
 from app.core.config import Settings, settings
 from app.core.database import SessionLocal, utcnow
+from app.core.storage import get_store
 from app.repositories.models import AuditEvent, ModelVersion, TrainingJob, TrainingMetric
 from app.services.retention import apply_retention
 from tests.conftest import ANA, LUIS, SOFIA
@@ -72,10 +72,10 @@ def test_retention_policy(client):
         trained.ended_at = old
         model = db.query(ModelVersion).filter_by(job_id=job["id"]).one()
         model.status, model.updated_at = "RETIRED", old
-        folder = settings.data_dir / model.storage_key
+        prefix = model.storage_key
         db.commit()
         model_id = model.id
-    assert Path(folder).is_dir()
+    assert len(get_store().list(prefix)) == 3  # model.keras, preprocessor.pkl, metadata.json
 
     with SessionLocal() as db:
         counts = apply_retention(db)
@@ -87,7 +87,7 @@ def test_retention_policy(client):
         kept = db.get(TrainingJob, job["id"])
         assert kept.status == "COMPLETED" and "evaluation" in kept.result_json  # el resumen se conserva
         assert db.get(ModelVersion, model_id).metadata_json["artifactsPurgedAt"]
-    assert not Path(folder).exists()
+    assert get_store().list(prefix) == []
     assert client.get(f"{API}/models/{model_id}/download", headers=ANA).status_code == 410
 
 
@@ -101,3 +101,12 @@ def test_production_refuses_development_settings(monkeypatch):
     monkeypatch.setenv("NEUROLAB_SECRET_KEY", "")
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
         Settings().check_runtime()
+
+    # Sin almacén de objetos (§5) tampoco arranca en producción.
+    monkeypatch.setenv("NEUROLAB_SECRET_KEY", "clave-de-produccion")
+    monkeypatch.setenv("NEUROLAB_STORAGE_BACKEND", "local")
+    with pytest.raises(RuntimeError, match="STORAGE_BACKEND"):
+        Settings().check_runtime()
+
+    monkeypatch.setenv("NEUROLAB_STORAGE_BACKEND", "s3")
+    Settings().check_runtime()

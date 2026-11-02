@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
 from app.api.deps import DB, CurrentUser
-from app.core.config import settings
+from app.core.storage import get_store
 from app.modules.permissions import allowed, require_project
 from app.repositories.models import ModelVersion
 from app.schemas.training import ModelStatusIn, ModelVersionOut
@@ -76,14 +76,15 @@ def change_status(model_id: str, payload: ModelStatusIn, user: CurrentUser, db: 
 def download(model_id: str, user: CurrentUser, db: DB) -> StreamingResponse:
     """Empaqueta pesos `.keras`, preprocesador `.pkl` y metadatos en un ZIP."""
     model, _ = _load(db, user, model_id, "model.download")
-    folder = settings.data_dir / model.storage_key
-    if not folder.is_dir():
+    store = get_store()
+    keys = store.list(model.storage_key)
+    if not keys:
         raise HTTPException(status.HTTP_410_GONE, "Los artefactos del modelo no están disponibles.")
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(folder.iterdir()):
-            archive.write(path, arcname=path.name)
+        for key in keys:
+            archive.writestr(key.rsplit("/", 1)[-1], store.get(key))
     buffer.seek(0)
     audit.record(db, user.id, "model.download", "model_version", model.id, model.project_id, version=model.version)
     db.commit()

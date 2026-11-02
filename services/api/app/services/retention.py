@@ -9,13 +9,12 @@
 
 from __future__ import annotations
 
-import shutil
 from datetime import datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.storage import get_store
 from app.core.database import utcnow
 from app.modules import state_machine as sm
 from app.repositories.models import AuditEvent, ModelVersion, TrainingEvent, TrainingJob, TrainingMetric
@@ -44,7 +43,7 @@ def apply_retention(db: Session, now: datetime | None = None) -> dict[str, int]:
     for model in retired:
         if model.metadata_json.get("artifactsPurgedAt"):
             continue
-        shutil.rmtree(settings.data_dir / model.storage_key, ignore_errors=True)
+        get_store().delete_prefix(model.storage_key)
         model.metadata_json = {**model.metadata_json, "artifactsPurgedAt": now.isoformat()}
         purged += 1
 

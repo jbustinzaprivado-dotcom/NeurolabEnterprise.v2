@@ -26,6 +26,12 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       NEUROLAB_TEST_DATABASE_URL: postgresql+psycopg2://neurolab:neurolab@localhost:5432/neurolab_test
+      # Toda la suite corre contra un almacén de objetos S3 real (MinIO), como en el despliegue.
+      NEUROLAB_STORAGE_BACKEND: s3
+      NEUROLAB_S3_ENDPOINT: http://localhost:9000
+      NEUROLAB_S3_BUCKET: neurolab-ci
+      NEUROLAB_S3_ACCESS_KEY: neurolab
+      NEUROLAB_S3_SECRET_KEY: neurolab-ci-clave
       NEUROLAB_LOG_FORMAT: text
       TF_CPP_MIN_LOG_LEVEL: "2"
     defaults:
@@ -33,6 +39,11 @@ jobs:
         working-directory: services/api
     steps:
       - uses: actions/checkout@v4
+      - name: Iniciar MinIO (almacén de objetos S3)
+        working-directory: .
+        run: |
+          docker run -d --name minio -p 9000:9000             -e MINIO_ROOT_USER=neurolab -e MINIO_ROOT_PASSWORD=neurolab-ci-clave             minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/ready && break; sleep 2; done
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

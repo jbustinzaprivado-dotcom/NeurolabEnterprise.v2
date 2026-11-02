@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, 
 from sqlalchemy import func, select
 
 from app.api.deps import DB, CurrentUser
-from app.core.config import settings
+from app.core.storage import get_store
 from app.core.database import utcnow
 from app.modules import state_machine as sm
 from app.modules.datasets import DatasetRejected, inspect_csv
@@ -129,9 +129,7 @@ async def upload_dataset(
     db.add(dataset)
     db.flush()
     dataset.storage_key = f"uploads/{project_id}/{dataset.id}.csv"
-    path = settings.data_dir / dataset.storage_key
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(content)
+    get_store().put(dataset.storage_key, content, "text/csv")
     audit.record(
         db, user.id, "dataset.upload", "dataset", dataset.id, project_id,
         name=display, version=dataset.version, rows=report.rows, checksum=dataset.checksum,
@@ -166,7 +164,7 @@ def delete_dataset(dataset_id: str, user: CurrentUser, db: DB) -> Response:
     dataset.status = "DELETED"
     dataset.deleted_at = utcnow()
     if not jobs:
-        (settings.data_dir / dataset.storage_key).unlink(missing_ok=True)
+        get_store().delete(dataset.storage_key)
     audit.record(
         db, user.id, "dataset.delete", "dataset", dataset.id, dataset.project_id,
         name=dataset.name, version=dataset.version, fileKept=bool(jobs),

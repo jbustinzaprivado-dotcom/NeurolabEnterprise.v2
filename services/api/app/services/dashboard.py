@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import utcnow
+from app.core.storage import get_store
 from app.modules import state_machine as sm
 from app.repositories.models import ModelVersion, Project, ProjectMember, TrainingJob, TrainingMetric, User, WorkerNode
 from app.schemas.training import PRIORITY_RANK
@@ -25,7 +26,7 @@ def _tone(ratio: float) -> str:
 
 
 def _storage_gb() -> float:
-    total = sum(path.stat().st_size for path in settings.data_dir.rglob("*") if path.is_file())
+    total = get_store().total_bytes()
     return round(total / 1024**3, 3)
 
 

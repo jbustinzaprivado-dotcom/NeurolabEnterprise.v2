@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import tempfile
 import time
 import traceback
 from collections.abc import Callable
@@ -20,8 +21,8 @@ import numpy as np
 from sklearn import metrics as skm
 from sqlalchemy import func, select
 
-from app.core.config import settings
 from app.core.database import SessionLocal, utcnow
+from app.core.storage import ObjectNotFound, get_store
 from app.modules import state_machine as sm
 from app.modules.datasets import read_csv_bytes
 from app.repositories.models import ModelVersion, TrainingJob
@@ -31,6 +32,8 @@ from workers.training.pipelines.model_builder import build_model
 from workers.training.pipelines.tabular import PreparedData, prepare
 
 logger = logging.getLogger("neurolab.worker")
+
+CONTENT_TYPES = {".json": "application/json", ".keras": "application/zip", ".pkl": "application/octet-stream"}
 
 
 class ControlledError(Exception):
@@ -147,12 +150,14 @@ def _register(job_id: str, model: keras.Model, data: PreparedData, evaluation: d
             )
         )
         version = (latest or 0) + 1
-        # Una carpeta huérfana (registro interrumpido) nunca se sobrescribe: se salta ese número.
-        while (settings.data_dir / f"models/{job.project_id}/{arch.name}/v{version}").exists():
+        store = get_store()
+        # Objetos huérfanos (registro interrumpido) nunca se sobrescriben: se salta ese número.
+        while store.list(f"models/{job.project_id}/{arch.name}/v{version}"):
             version += 1
         storage_key = f"models/{job.project_id}/{arch.name}/v{version}"
-        folder = settings.data_dir / storage_key
-        folder.mkdir(parents=True)
+        # Keras necesita una ruta local: se arma el paquete en una carpeta temporal y se sube.
+        staging = tempfile.TemporaryDirectory(prefix="neurolab-modelo-")
+        folder = Path(staging.name)
 
         model.save(folder / "model.keras")
         joblib.dump(
@@ -183,10 +188,14 @@ def _register(job_id: str, model: keras.Model, data: PreparedData, evaluation: d
             "createdAt": utcnow().isoformat(),
         }
         (folder / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        checksum = _checksum(folder)
+        for path in sorted(folder.iterdir()):
+            store.put(f"{storage_key}/{path.name}", path.read_bytes(), CONTENT_TYPES.get(path.suffix, "application/octet-stream"))
+        staging.cleanup()
 
         model_version = ModelVersion(
             project_id=job.project_id, job_id=job.id, architecture_id=arch.id, name=arch.name, version=version,
-            storage_key=storage_key, checksum=_checksum(folder),
+            storage_key=storage_key, checksum=checksum,
             metrics_json={**evaluation["test"], **{f"final_{k}": v for k, v in job.result_json.get("latest", {}).items()}},
             metadata_json=metadata,
         )
@@ -216,16 +225,18 @@ def run_job(job_id: str, worker_id: str) -> str:
                 return sm.CANCELLED
             params = dict(job.params_json)
             config = dict(job.architecture.config_json)
-            dataset_path = settings.data_dir / job.dataset.storage_key
+            dataset_key = job.dataset.storage_key
             split = dict(job.dataset.split)
             target = job.target_column
             job_events.log(db, job_id, f"Preparando {job.dataset.name} v{job.dataset.version} (objetivo «{target}»).")
             db.commit()
 
-        if not dataset_path.is_file():
-            raise ControlledError("El archivo del dataset no está en el almacenamiento.")
         try:
-            data = prepare(read_csv_bytes(dataset_path.read_bytes()), target, params["task"], split, params["seed"])
+            content = get_store().get(dataset_key)
+        except ObjectNotFound as exc:
+            raise ControlledError("El archivo del dataset no está en el almacenamiento.") from exc
+        try:
+            data = prepare(read_csv_bytes(content), target, params["task"], split, params["seed"])
         except ValueError as exc:
             raise ControlledError(f"Preprocesamiento: {exc}") from exc
         if params["task"] == "classification" and len(data.classes) != params["classes"]:
