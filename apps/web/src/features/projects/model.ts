@@ -81,13 +81,18 @@ export interface AccessRule {
 }
 
 /** Matriz de referencia mostrada en la pestaña de miembros (§4.2 y §11). */
+/* Refleja PROJECT_ACTIONS de services/api/app/modules/permissions.py: la API es quien decide. */
 export const ACCESS_MATRIX: AccessRule[] = [
-  { capability: 'Consultar ficha y documentación', roles: ['owner', 'engineer', 'reviewer', 'reader'] },
-  { capability: 'Editar el proyecto y sus etiquetas', roles: ['owner'] },
+  { capability: 'Consultar ficha, datos y resultados', roles: ['owner', 'engineer', 'reviewer', 'reader'] },
+  { capability: 'Editar la ficha del proyecto', roles: ['owner'] },
   { capability: 'Administrar miembros y permisos', roles: ['owner'] },
-  { capability: 'Gestionar documentación', roles: ['owner', 'engineer'] },
-  { capability: 'Configurar arquitecturas y entrenamientos', roles: ['owner', 'engineer'] },
-  { capability: 'Aprobar versiones de modelos', roles: ['owner', 'reviewer'] },
+  { capability: 'Gestionar documentación y etiquetas', roles: ['owner', 'engineer'] },
+  { capability: 'Configurar arquitecturas, datasets y entrenamientos', roles: ['owner', 'engineer'] },
+  { capability: 'Eliminar datasets', roles: ['owner'] },
+  { capability: 'Revisar y aprobar versiones de modelos', roles: ['owner', 'reviewer'] },
+  { capability: 'Retirar modelos', roles: ['owner'] },
+  { capability: 'Descargar modelos y exportar reportes', roles: ['owner', 'engineer', 'reviewer'] },
+  { capability: 'Consultar la auditoría del proyecto', roles: ['owner', 'reviewer'] },
 ];
 
 /** El administrador global (M10) prevalece sobre el rol del proyecto. */
