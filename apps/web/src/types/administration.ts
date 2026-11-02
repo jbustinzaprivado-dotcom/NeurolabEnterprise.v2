@@ -79,6 +79,7 @@ export type ResourceLimitId =
   | 'duration'
   | 'epochs'
   | 'upload'
+  | 'rate'
   | 'storage'
   | 'gpu'
   | 'cpu'

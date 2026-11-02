@@ -18,12 +18,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import DB, CurrentUser
 from app.core.config import settings
 from app.core.database import utcnow
+from app.core.rate_limit import invalidate_limit_cache, limiter
 from app.core.security import hash_password
 from app.modules import state_machine as sm
 from app.repositories.models import AuditEvent, Dataset, Project, ProjectMember, TrainingJob, User, WorkerNode
 from app.schemas.common import CamelModel
 from app.schemas.project import UserRole
 from app.services import audit, dashboard, platform_settings
+from app.services.retention import apply_retention
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -96,6 +98,7 @@ def _usage(db: Session) -> dict[str, float]:
         "duration": round(longest, 1),
         "epochs": max((job.params_json["epochs"] for job in active), default=0),
         "upload": round(largest / 1024**2, 2),
+        "rate": limiter.peak(),
         "storage": dashboard.health(db)["storageUsedGb"],
     }
 
@@ -231,6 +234,8 @@ def toggle_status(user_id: str, user: CurrentUser, db: DB) -> dict:
     label = audit.describe(action)[0]
     previous, target.status = target.status, next_status
     target.status_reason = None if next_status == "ACTIVE" else f"{label} por {user.display_name}."
+    if next_status == "ACTIVE":
+        target.failed_logins = 0
     audit.record(db, user.id, action, "user", target.id, estadoAnterior=previous, estadoNuevo=next_status)
     db.commit()
     return snapshot(db)
@@ -245,6 +250,7 @@ def update_limit(limit_id: str, payload: LimitIn, user: CurrentUser, db: DB) -> 
         previous = platform_settings.set_limit(db, limit_id, payload.value)
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    invalidate_limit_cache()
     meta = platform_settings.LIMIT_DEFS[limit_id]
     audit.record(db, user.id, "limits.updated", "limit", limit_id,
                  limite=meta["label"], anterior=previous, nuevo=payload.value, unidad=meta["unit"])
@@ -260,6 +266,14 @@ def update_settings(payload: SecurityIn, user: CurrentUser, db: DB) -> dict:
         audit.record(db, user.id, "settings.updated", "settings", "security", campos=", ".join(changed))
     db.commit()
     return snapshot(db)
+
+
+@router.post("/retention/run")
+def run_retention(user: CurrentUser, db: DB) -> dict:
+    """Aplica ahora la política de retención (el worker también la aplica cada hora)."""
+    _require_admin(user)
+    counts = apply_retention(db)
+    return {**snapshot(db), "retention": counts}
 
 
 @router.post("/audit/export")

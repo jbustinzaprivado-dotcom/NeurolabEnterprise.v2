@@ -76,6 +76,10 @@ class Settings:
     max_active_jobs_per_project: int = field(default_factory=lambda: int(_env("MAX_ACTIVE_JOBS_PER_PROJECT", "4")))
     max_job_seconds: int = field(default_factory=lambda: int(_env("MAX_JOB_SECONDS", "1800")))
     storage_limit_gb: float = field(default_factory=lambda: float(_env("STORAGE_LIMIT_GB", "20")))
+    # Límites de tasa y bloqueo de cuentas (§11).
+    rate_limit_per_minute: int = field(default_factory=lambda: int(_env("RATE_LIMIT_PER_MINUTE", "600")))
+    login_attempts_per_minute: int = field(default_factory=lambda: int(_env("LOGIN_ATTEMPTS_PER_MINUTE", "10")))
+    max_failed_logins: int = field(default_factory=lambda: int(_env("MAX_FAILED_LOGINS", "5")))
     # §18: RNN, CNN y GAN se habilitan progresivamente para entrenamiento.
     training_families: list[str] = field(default_factory=lambda: _env_list("TRAINING_FAMILIES", "FEEDFORWARD"))
 
@@ -112,6 +116,15 @@ class Settings:
         if self.env == "production":
             raise RuntimeError("NEUROLAB_SECRET_KEY es obligatoria en producción.")
         return DEV_SECRET
+
+    def check_runtime(self) -> None:
+        """Se niega a arrancar con configuraciones de desarrollo fuera de desarrollo (§11)."""
+        if self.env == "production":
+            if self.auth_dev_bypass:
+                raise RuntimeError("NEUROLAB_AUTH_DEV_BYPASS no puede estar activo en producción.")
+            if self.seed_history:
+                raise RuntimeError("NEUROLAB_SEED_HISTORY no puede estar activo en producción.")
+            self.resolved_secret_key  # noqa: B018  exige NEUROLAB_SECRET_KEY
 
     def ensure_dirs(self) -> None:
         for path in (self.uploads_dir, self.models_dir, self.logs_dir):

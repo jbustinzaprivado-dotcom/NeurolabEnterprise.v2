@@ -35,6 +35,8 @@ class User(Base):
     status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     password_hash: Mapped[str] = mapped_column(String(255))
+    # Intentos fallidos consecutivos; al superar el límite la cuenta pasa a LOCKED (§11).
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     last_access_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 

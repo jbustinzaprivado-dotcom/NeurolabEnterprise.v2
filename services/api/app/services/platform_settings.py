@@ -40,6 +40,11 @@ LIMIT_DEFS: dict[str, dict[str, Any]] = {
         "hint": "Límite por archivo CSV al registrar un dataset (RN-01).",
         "default": settings.max_upload_mb,
     },
+    "rate": {
+        "label": "Peticiones por minuto y usuario", "unit": "req/min", "min": 60, "max": 3000, "step": 30,
+        "hint": "Límite de tasa de la API (§11); el canal SSE no cuenta.",
+        "default": settings.rate_limit_per_minute,
+    },
     "storage": {
         "label": "Cuota de almacenamiento", "unit": "GB", "min": 1, "max": 500, "step": 1,
         "hint": "Datasets y artefactos de modelo en el almacenamiento de objetos.",

@@ -383,4 +383,8 @@ export const adminApi = {
   setLimit: (id: string, value: number) => api.put<AdminSnapshot>(`/admin/limits/${id}`, { value }),
   saveSettings: (settings: SecuritySettings) => api.put<AdminSnapshot>('/admin/settings', settings),
   recordAuditExport: (events: number) => api.post<AdminSnapshot>('/admin/audit/export', { events }),
+  runRetention: () =>
+    api.post<AdminSnapshot & { retention: Record<'auditoria' | 'metricas' | 'eventos' | 'artefactos', number> }>(
+      '/admin/retention/run',
+    ),
 };

@@ -63,6 +63,14 @@ from app.core.security import issue_token  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """Cada prueba empieza con los contadores de tasa a cero (son por IP y por usuario)."""
+    from app.core.rate_limit import limiter
+
+    limiter.reset()
+
+
 @pytest.fixture(scope="session")
 def client():
     with TestClient(app) as test_client:

@@ -31,8 +31,12 @@ from app.core.database import SessionLocal, engine, utcnow  # noqa: E402
 from app.modules import state_machine as sm  # noqa: E402
 from app.repositories.models import TrainingJob, WorkerNode  # noqa: E402
 from app.services import job_events  # noqa: E402
+from app.services.retention import apply_retention  # noqa: E402
 
 logger = logging.getLogger("neurolab.worker")
+
+# La política de retención (§11) se revisa al arrancar y luego cada hora.
+RETENTION_EVERY_SECONDS = 3600
 
 
 def heartbeat(worker_id: str, status: str, job_id: str | None = None) -> None:
@@ -124,10 +128,16 @@ def main() -> None:
     logger.info("Worker %s listo. Familias entrenables: %s", worker_id, ", ".join(settings.training_families))
     import workers.training.jobs.runner  # noqa: F401  carga TensorFlow una sola vez, antes del primer trabajo
 
+    last_retention = float("-inf")
     while not shutdown_requested.is_set():
         heartbeat(worker_id, "IDLE")
         if reaped := reap_stale_jobs():
             logger.warning("%d trabajos huérfanos marcados como FAILED.", reaped)
+        if time.monotonic() - last_retention >= RETENTION_EVERY_SECONDS:
+            last_retention = time.monotonic()
+            with SessionLocal() as db:
+                if counts := {k: v for k, v in apply_retention(db).items() if v}:
+                    logger.info("Retención aplicada: %s.", counts)
         result = process_next_job(worker_id)
         if result:
             logger.info("%s terminó en %s.", *result)

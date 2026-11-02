@@ -29,6 +29,7 @@ def _start_session(db: Session, user: User) -> TokenOut:
         user.status, user.status_reason = "ACTIVE", None
         audit.record(db, user.id, "auth.invite_accepted", "user", user.id)
     user.last_access_at = utcnow()
+    user.failed_logins = 0
     ttl = int(platform_settings.security(db)["sessionMinutes"])
     token, expires_at = issue_token(user.id, ttl)
     audit.record(db, user.id, "auth.login", "user", user.id)
@@ -40,9 +41,26 @@ def _start_session(db: Session, user: User) -> TokenOut:
 def login(payload: LoginIn, db: DB) -> TokenOut:
     user = db.scalar(select(User).where(func.lower(User.email) == payload.email.strip().lower()))
     # Mismo mensaje para usuario inexistente y contraseña errónea.
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales inválidas.")
+    if user.status == "LOCKED":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, _LOCKED_MESSAGE)
+    if not verify_password(payload.password, user.password_hash):
+        # Bloqueo tras intentos fallidos consecutivos (§11); solo administración desbloquea.
+        user.failed_logins += 1
+        if user.failed_logins >= settings.max_failed_logins:
+            user.status = "LOCKED"
+            user.status_reason = f"Bloqueada tras {user.failed_logins} intentos fallidos de inicio de sesión."
+            audit.record(db, user.id, "auth.locked", "user", user.id, intentos=user.failed_logins)
+            db.commit()
+            raise HTTPException(status.HTTP_403_FORBIDDEN, _LOCKED_MESSAGE)
+        audit.record(db, user.id, "auth.failed", "user", user.id, intentos=user.failed_logins)
+        db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales inválidas.")
     return _start_session(db, user)
+
+
+_LOCKED_MESSAGE = "Cuenta bloqueada por intentos fallidos. Solicita el desbloqueo a administración."
 
 
 @router.post("/auth/dev-login", response_model=TokenOut)

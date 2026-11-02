@@ -14,8 +14,10 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Tiempo real WebSocket o SSE (§5) | SSE que reenvía eventos persistidos; `Last-Event-ID` para reanudar | Cumple |
 | Familias progresivas (§18) | Se validan las cuatro; solo FEEDFORWARD entrena | Cumple |
 | Almacenamiento de objetos (§5) | Carpetas `data/uploads` y `data/models` | Pendiente |
-| Proveedor de identidad seguro (§11) | Tokens HMAC propios; acceso sin token solo en desarrollo | Pendiente |
-| Límites de tasa y retención (§11) | Cuotas por usuario y proyecto; retención guardada sin aplicar | Pendiente |
+| Proveedor de identidad seguro (§11) | Tokens HMAC propios y bloqueo tras 5 intentos fallidos. El acceso sin token solo existe en desarrollo y la API no arranca con él en producción | Parcial: falta un IdP externo |
+| Límites de tasa (§11) | Por usuario (editable en M10, 600/min por defecto) y por IP en el inicio de sesión (10/min); responde 429 con `Retry-After` | Cumple |
+| Política de retención (§11) | Auditoría, métricas por época y artefactos de modelos retirados; el worker la aplica cada hora y M10 puede lanzarla a mano | Cumple |
+| Cifrado en tránsito (§11) | HTTP en local; HTTPS va con el despliegue | Pendiente (fase 6) |
 | TanStack Query (§5) | Caché compartida en `apps/web/src/lib/api/queryClient.ts`; las mutaciones invalidan las claves afectadas | Cumple |
 | Docker, CI/CD, logs, respaldos (§5, §11, §14) | No implementado | Pendiente |
 

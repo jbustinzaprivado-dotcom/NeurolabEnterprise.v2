@@ -228,6 +228,28 @@ export function AdministrationPage() {
             <Icon name="refresh" size={16} />
             Actualizar
           </button>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            title="El worker la aplica cada hora; este botón la ejecuta ahora."
+            onClick={() =>
+              void adminApi
+                .runRetention()
+                .then(({ retention, ...next }) => {
+                  setSnapshot(next);
+                  setNotice({
+                    tone: 'success',
+                    text: `Retención aplicada: ${retention.auditoria} eventos de auditoría, ${retention.metricas} métricas y ${retention.artefactos} artefactos retirados purgados. Los modelos aprobados nunca se purgan.`,
+                  });
+                })
+                .catch((caught: unknown) =>
+                  setNotice({ tone: 'danger', text: caught instanceof Error ? caught.message : 'No se pudo aplicar la retención.' }),
+                )
+            }
+          >
+            <Icon name="clock" size={16} />
+            Aplicar retención
+          </button>
           <button type="button" className="btn btn--primary" onClick={() => setInviteOpen(true)}>
             <Icon name="userPlus" size={16} />
             Invitar usuario
