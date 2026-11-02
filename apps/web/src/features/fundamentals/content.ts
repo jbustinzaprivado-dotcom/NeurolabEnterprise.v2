@@ -122,6 +122,8 @@ export interface ActivationFunction {
   /** Nota sobre el dominio representado en la gráfica. */
   plotNote: string;
   slopeAtZero: number;
+  /** Cuando la derivada en 0 no existe (funciones con quiebre), se explica en lugar del número. */
+  slopeNote?: string;
   bounded: boolean;
   risks: ActivationRisk[];
   uses: string;
@@ -165,7 +167,8 @@ export const ACTIVATIONS: ActivationFunction[] = [
     evaluate: (z) => Math.max(0, z),
     range: '[0, ∞)',
     plotNote: 'Corte duro en cero.',
-    slopeAtZero: 1,
+    slopeAtZero: 0,
+    slopeNote: 'No definida: 0 a la izquierda, 1 a la derecha (Keras usa 0)',
     bounded: false,
     risks: ['dead'],
     uses: 'Activación por defecto en capas ocultas densas y convolucionales.',
@@ -181,10 +184,11 @@ export const ACTIVATIONS: ActivationFunction[] = [
     evaluate: (z) => (z > 0 ? z : 0.01 * z),
     range: '(−∞, ∞)',
     plotNote: 'Pendiente negativa pequeña.',
-    slopeAtZero: 1,
+    slopeAtZero: 0.01,
+    slopeNote: 'No definida: 0,01 a la izquierda, 1 a la derecha',
     bounded: false,
     risks: [],
-    uses: 'Alternativa a ReLU cuando se pierden neuronas por saturación.',
+    uses: 'Alternativa a ReLU cuando muchas neuronas quedan muertas (z siempre negativo).',
     notes: ['Mantiene gradiente en la zona negativa.', 'La pendiente 0,01 es un hiperparámetro habitual.'],
   },
   {
@@ -210,8 +214,8 @@ export const ACTIVATIONS: ActivationFunction[] = [
     slopeAtZero: 1,
     bounded: false,
     risks: [],
-    uses: 'Salida en regresión y capas de arranque de GAN.',
-    notes: ['Aporta capacidad, pero no no linealidad.'],
+    uses: 'Capa de salida en regresión, donde el valor no está acotado (p. ej. ff-precios).',
+    notes: ['No añade no linealidad: varias capas lineales seguidas equivalen a una sola.'],
   },
 ];
 

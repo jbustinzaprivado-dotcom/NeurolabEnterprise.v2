@@ -104,7 +104,7 @@ export function ActivationExplorer() {
           </div>
           <div>
             <dt>Pendiente en z = 0</dt>
-            <dd>{formatNumber(fn.slopeAtZero, 2)}</dd>
+            <dd>{fn.slopeNote ?? formatNumber(fn.slopeAtZero, 2)}</dd>
           </div>
           <div>
             <dt>f(0)</dt>
