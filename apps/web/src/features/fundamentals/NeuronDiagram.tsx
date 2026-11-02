@@ -34,7 +34,7 @@ const PARTS: NeuronPart[] = [
   {
     id: 'suma',
     label: 'Suma ponderada',
-    symbol: 'z = Σ wᵢx + b',
+    symbol: 'z = Σ wᵢxᵢ + b',
     detail: 'La neurona acumula las señales entrantes ya escaladas por sus pesos y añade el sesgo.',
   },
   {

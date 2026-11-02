@@ -246,7 +246,7 @@ export function FundamentalsPage() {
           <div className="dash__col">
             <Panel title="Ficha rápida" subtitle="Lo que toda arquitectura del M04 debe respetar." icon="model">
               <p className="fund-formula">
-                <span className="u-mono">z = Σ wᵢx + b</span>
+                <span className="u-mono">z = Σ wᵢxᵢ + b</span>
                 <span className="u-mono">a = f(z)</span>
               </p>
               <p className="panel__note">

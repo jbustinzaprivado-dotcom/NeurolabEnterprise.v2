@@ -290,7 +290,7 @@ export const GLOSSARY: GlossaryTerm[] = [
     term: 'Función de activación',
     category: 'Activación',
     definition:
-      'Transformación no lineal aplicada a z = Σ wᵢx + b. Sin ella, varias capas colapsarían en una transformación lineal.',
+      'Transformación no lineal aplicada a z = Σ wᵢxᵢ + b. Sin ella, varias capas colapsarían en una transformación lineal.',
     related: ['ReLU', 'Sigmoid', 'No linealidad'],
   },
   {
