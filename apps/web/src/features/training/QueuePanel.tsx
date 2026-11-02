@@ -14,6 +14,7 @@ import type { QueuePriority, RunRecord } from '@/features/training/model';
 
 interface QueuePanelProps {
   actor: Actor;
+  actorFor: (projectId: string) => Actor;
   jobs: TrainingJob[];
   recordOf: (job: TrainingJob) => RunRecord;
   selectedId: string;
@@ -35,6 +36,7 @@ function remaining(job: TrainingJob): number | null {
 
 export function QueuePanel({
   actor,
+  actorFor,
   jobs,
   recordOf,
   selectedId,
@@ -108,7 +110,7 @@ export function QueuePanel({
               {queue.map((job, index) => {
                 const record = recordOf(job);
                 const mine = job.owner === me;
-                const editablePriority = job.status === 'QUEUED' && can(actor, 'priorizar', { mine });
+                const editablePriority = job.status === 'QUEUED' && can(actorFor(job.projectId), 'priorizar', { mine });
                 const clock = remaining(job);
                 const selectable = selectedId === job.id;
                 return (
@@ -160,7 +162,7 @@ export function QueuePanel({
                             onChange={(event) => onPriority(job, event.target.value as QueuePriority)}
                           >
                             {(Object.keys(PRIORITY_LABEL) as QueuePriority[]).map((key) => (
-                              <option key={key} value={key} disabled={PRIORITY_RANK[key] < PRIORITY_RANK[maxPriorityFor(actor)]}>
+                              <option key={key} value={key} disabled={PRIORITY_RANK[key] < PRIORITY_RANK[maxPriorityFor(actorFor(job.projectId))]}>
                                 {PRIORITY_LABEL[key]}
                               </option>
                             ))}
@@ -211,9 +213,9 @@ export function QueuePanel({
                             type="button"
                             className="btn btn--ghost btn--sm"
                             onClick={() => onStart(job)}
-                            disabled={!can(actor, 'adelantar', { mine })}
+                            disabled={!can(actorFor(job.projectId), 'adelantar', { mine })}
                             title={
-                              can(actor, 'adelantar', { mine })
+                              can(actorFor(job.projectId), 'adelantar', { mine })
                                 ? 'Pasar al frente de la cola: el próximo worker libre lo toma'
                                 : 'Iniciar sin turno un trabajo ajeno es sólo de administración.'
                             }

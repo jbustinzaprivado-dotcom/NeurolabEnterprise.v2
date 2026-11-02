@@ -18,6 +18,7 @@ type StatusFilter = JobStatus | 'ALL';
 
 interface HistoryTableProps {
   actor: Actor;
+  actorFor: (projectId: string) => Actor;
   jobs: TrainingJob[];
   recordOf: (job: TrainingJob) => RunRecord;
   selectedId: string;
@@ -25,7 +26,7 @@ interface HistoryTableProps {
   onRetry: (job: TrainingJob) => void;
 }
 
-export function HistoryTable({ actor, jobs, recordOf, selectedId, onSelect, onRetry }: HistoryTableProps) {
+export function HistoryTable({ actor, actorFor, jobs, recordOf, selectedId, onSelect, onRetry }: HistoryTableProps) {
   const [status, setStatus] = useState<StatusFilter>('ALL');
   const [query, setQuery] = useState('');
   const me = shortName(actor.displayName);
@@ -156,12 +157,12 @@ export function HistoryTable({ actor, jobs, recordOf, selectedId, onSelect, onRe
 
                     <td data-label="Cierre" className="u-num">
                       {job.endedAt ? formatDateTime(job.endedAt) : '—'}
-                      <span className="table__sub">{formatNumber(job.epoch)}/{formatNumber(job.epochs)} épocas</span>
+                      <span className="table__sub tr-cell-sub">{formatNumber(job.epoch)}/{formatNumber(job.epochs)} épocas</span>
                     </td>
 
                     <td data-label="Versión">
                       <span className="u-mono">{record.version}</span>
-                      <span className="table__sub u-truncate">{job.architectureName}</span>
+                      <span className="table__sub tr-cell-sub u-truncate">{job.architectureName}</span>
                     </td>
 
                     <td data-label="Duración" className="is-right u-num">
@@ -207,13 +208,15 @@ export function HistoryTable({ actor, jobs, recordOf, selectedId, onSelect, onRe
 
                     <td data-label="Acciones" className="is-right">
                       <div className="tr-queue__actions">
+                        {/* §10: solo se reintentan fallidos o cancelados; un completado ya tiene su versión. */}
+                        {job.status === 'FAILED' || job.status === 'CANCELLED' ? (
                         <button
                           type="button"
                           className="btn btn--ghost btn--sm"
                           onClick={() => onRetry(job)}
-                          disabled={!can(actor, 'reintentar', { mine })}
+                          disabled={!can(actorFor(job.projectId), 'reintentar', { mine })}
                           title={
-                            can(actor, 'reintentar', { mine })
+                            can(actorFor(job.projectId), 'reintentar', { mine })
                               ? 'Encolar una ejecución nueva con estos parámetros, conservando la trazabilidad'
                               : 'Su rol no permite reintentar trabajos ajenos'
                           }
@@ -221,6 +224,8 @@ export function HistoryTable({ actor, jobs, recordOf, selectedId, onSelect, onRe
                           <Icon name="refresh" size={13} />
                           Reintentar
                         </button>
+                        ) : null}
+                        {job.status === 'COMPLETED' ? (
                         <a
                           className="btn btn--ghost btn--sm"
                           href="/evaluation"
@@ -229,6 +234,7 @@ export function HistoryTable({ actor, jobs, recordOf, selectedId, onSelect, onRe
                           <Icon name="metrics" size={13} />
                           Evaluar
                         </a>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

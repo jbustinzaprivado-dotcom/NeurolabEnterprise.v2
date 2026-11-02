@@ -1039,3 +1039,9 @@ select.tr-input {
     animation: none;
   }
 }
+
+/* Dato secundario bajo el valor de una celda (fecha → épocas, versión → arquitectura). */
+.tr-cell-sub {
+  display: block;
+  margin-top: 2px;
+}

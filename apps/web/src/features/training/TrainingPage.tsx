@@ -220,6 +220,7 @@ export function TrainingPage() {
             <div className="dash__col">
               <LaunchPanel
                 actor={run.actor}
+                actorFor={run.actorFor}
                 projects={run.projects}
                 limits={run.limits}
                 values={values}
@@ -230,6 +231,7 @@ export function TrainingPage() {
 
               <QueuePanel
                 actor={run.actor}
+                actorFor={run.actorFor}
                 jobs={run.jobs}
                 recordOf={run.recordOf}
                 selectedId={job?.id ?? ''}
@@ -250,6 +252,7 @@ export function TrainingPage() {
                 job={job}
                 record={record}
                 actor={run.actor}
+                actorFor={run.actorFor}
                 pendingCancellation={run.pendingCancellation}
                 neighbours={run.jobs.length}
                 onSelectNeighbour={(direction) => {
@@ -286,6 +289,7 @@ export function TrainingPage() {
 
           <HistoryTable
             actor={run.actor}
+                actorFor={run.actorFor}
             jobs={run.jobs}
             recordOf={run.recordOf}
             selectedId={job?.id ?? ''}

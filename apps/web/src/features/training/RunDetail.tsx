@@ -81,6 +81,7 @@ interface RunDetailProps {
   job: TrainingJob | null;
   record: RunRecord | null;
   actor: Actor;
+  actorFor: (projectId: string) => Actor;
   pendingCancellation: string | null;
   onSelectNeighbour: (direction: -1 | 1) => void;
   neighbours: number;
@@ -94,6 +95,7 @@ export function RunDetail({
   job,
   record,
   actor,
+  actorFor,
   pendingCancellation,
   onSelectNeighbour,
   neighbours,
@@ -290,11 +292,11 @@ export function RunDetail({
               type="button"
               className="btn btn--secondary tr-btn-danger"
               onClick={() => onCancel(job)}
-              disabled={job.cancelRequested || pendingCancellation === job.id || !can(actor, 'cancelar', { mine })}
+              disabled={job.cancelRequested || pendingCancellation === job.id || !can(actorFor(job.projectId), 'cancelar', { mine })}
               title={
                 job.cancelRequested
                   ? 'Ya hay una cancelación en curso.'
-                  : can(actor, 'cancelar', { mine })
+                  : can(actorFor(job.projectId), 'cancelar', { mine })
                     ? 'Solicitar la interrupción con motivo (RN-05)'
                     : 'Su rol no permite cancelar este trabajo.'
               }
@@ -302,18 +304,18 @@ export function RunDetail({
               <Icon name="close" size={15} />
               {job.cancelRequested ? 'Cancelación en curso' : 'Solicitar cancelación'}
             </button>
-          ) : (
+          ) : job.status === 'FAILED' || job.status === 'CANCELLED' ? (
             <button
               type="button"
               className="btn btn--primary"
               onClick={() => onRetry(job)}
-              disabled={!can(actor, 'reintentar', { mine })}
-              title={can(actor, 'reintentar', { mine }) ? 'Encolar una ejecución nueva con estos parámetros' : 'Su rol no permite reintentar este trabajo.'}
+              disabled={!can(actorFor(job.projectId), 'reintentar', { mine })}
+              title={can(actorFor(job.projectId), 'reintentar', { mine }) ? 'Encolar una ejecución nueva con estos parámetros' : 'Su rol no permite reintentar este trabajo.'}
             >
               <Icon name="refresh" size={15} />
               Reintentar
             </button>
-          )}
+          ) : null}
 
           {finished && job.status === 'COMPLETED' ? (
             <a className="btn btn--ghost" href="/models">

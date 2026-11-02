@@ -50,6 +50,8 @@ function adapt(job: ApiTrainingJob): ApiTrainingJob {
 
 export interface TrainingModel {
   actor: Actor;
+  /** La persona con su rol en el proyecto (owner/engineer/reviewer/reader), que es el que aplica la API. */
+  actorFor: (projectId: string) => Actor;
   jobs: TrainingJob[];
   /** Registros conocidos por trabajo; M09 los usa para trazas y semillas. */
   records: RunStore;
@@ -75,6 +77,17 @@ export function useTrainingRuns(): TrainingModel {
   const { snapshot, refresh: refreshPlatform } = usePlatformData();
   const catalog = useCatalog();
   const [pendingCancellation, setPendingCancellation] = useState<string | null>(null);
+
+  /* Los permisos de M06 dependen del rol en cada proyecto, no del rol global (igual que la API);
+     la administración conserva su rol en todos. */
+  const actorFor = useCallback(
+    (projectId: string): Actor => {
+      if (actor.role === 'admin') return actor;
+      const role = catalog.projects.find((project) => project.id === projectId)?.myRole;
+      return { ...actor, role: (role as Actor['role']) ?? 'reader' };
+    },
+    [actor, catalog.projects],
+  );
 
   /* Sondeo adaptativo: rápido con trabajos activos, lento en reposo, pausado en segundo plano. */
   const query = useQuery({
@@ -148,11 +161,11 @@ export function useTrainingRuns(): TrainingModel {
 
   const launch = useCallback(
     async (values: LaunchValues): Promise<LaunchOutcome> => {
-      const issues = validateLaunch(values, actor, limits);
+      const issues = validateLaunch(values, actorFor(values.projectId), limits);
       if (Object.keys(issues.errors).length > 0) {
         return { ok: false, tone: 'danger', message: firstError(issues.errors) };
       }
-      if (!can(actor, 'lanzar')) {
+      if (!can(actorFor(values.projectId), 'lanzar')) {
         return { ok: false, tone: 'danger', message: 'Su rol no permite encolar entrenamientos; solicite el acceso en M10.' };
       }
       try {
@@ -182,7 +195,7 @@ export function useTrainingRuns(): TrainingModel {
         return failure(caught);
       }
     },
-    [actor, limits.epochs, limits.batch, load, refreshPlatform, online],
+    [actor, actorFor, limits.epochs, limits.batch, load, refreshPlatform, online],
   );
 
   const cancel = useCallback(
@@ -250,6 +263,7 @@ export function useTrainingRuns(): TrainingModel {
 
   return {
     actor,
+    actorFor,
     jobs: ordered,
     records,
     projects,

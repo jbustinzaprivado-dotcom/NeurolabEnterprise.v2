@@ -54,6 +54,7 @@ function Field({ id, label, hint, error, warning, wide, children }: FieldProps) 
 
 interface LaunchPanelProps {
   actor: Actor;
+  actorFor: (projectId: string) => Actor;
   projects: ProjectOption[];
   limits: { epochs: number; batch: number };
   values: LaunchValues;
@@ -89,7 +90,7 @@ function headHint(column: { kind: string; unique: number } | undefined, outputUn
   return `${matches === false ? '⚠ La arquitectura no encaja: ' : 'Se espera '}${expected}.`;
 }
 
-export function LaunchPanel({ actor, projects, limits, values, busy = false, onChange, onLaunch }: LaunchPanelProps) {
+export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = false, onChange, onLaunch }: LaunchPanelProps) {
   const launchable = projects.filter((item) => item.canLaunch);
   const project = launchable.find((item) => item.id === values.projectId);
   const architecture = project?.architectures.find((item) => item.id === values.architecture) ?? null;
@@ -97,7 +98,7 @@ export function LaunchPanel({ actor, projects, limits, values, busy = false, onC
   const target = dataset?.columns.find((column) => column.name === values.targetColumn);
   const issues = useMemo(() => validateLaunch(values, actor, limits), [values, actor, limits]);
   const optimizer = OPTIMIZERS.find((item) => item.id === values.optimizer);
-  const ceiling = maxPriorityFor(actor);
+  const ceiling = maxPriorityFor(values.projectId ? actorFor(values.projectId) : actor);
 
   const epochs = Number(values.epochs.replace(',', '.'));
   const batch = Number(values.batch.replace(',', '.'));

@@ -11,7 +11,11 @@ export function PermissionsPanel({ actor }: { actor: Actor }) {
   return (
     <Panel
       title="Permisos sobre la cola"
-      subtitle={`Aplicados a su sesión como ${roleLabels[actor.role]} (${actor.email}).`}
+      subtitle={
+        actor.role === 'admin'
+          ? `Administración (${actor.email}): aplica en todos los proyectos.`
+          : `Según su rol global (${roleLabels[actor.role]}). En cada trabajo se aplica su rol en ese proyecto, como en la API.`
+      }
       icon="shield"
       body="tight"
       actions={
