@@ -36,6 +36,16 @@ cd services\api
 ..\..\venv\Scripts\python.exe -m alembic revision --autogenerate -m "descripcion"
 ```
 
+## Datos demo (§17)
+
+Con la base vacía, la API carga datos demo no sensibles definidos en `app/demo/`:
+
+- **Usuarios:** los 9 del directorio, con contraseña `neurolab2026`.
+- **Proyectos:** 12, con miembros, documentos y etiquetas.
+- **Datasets:** 7 CSV generados dentro del proyecto. Son sintéticos o vienen incluidos en scikit-learn; ninguna fila corresponde a una persona real.
+- **Arquitecturas:** 15. Las Feedforward entrenan; las RNN, CNN y GAN quedan documentadas (§18).
+- **Historial (solo en desarrollo, `NEUROLAB_SEED_HISTORY`):** unos diez entrenamientos que la semilla deja en cola y el worker ejecuta de verdad al arrancar (alrededor de 1 minuto). Incluyen uno cancelado y uno con parada temprana. Las pruebas no cargan este historial.
+
 ## Ejecutar
 
 `run.bat` en la raíz levanta API, worker y frontend. Por separado:

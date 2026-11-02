@@ -61,6 +61,8 @@ class Settings:
     dev_user_id: str = field(default_factory=lambda: _env("DEV_USER_ID", "USR-207"))
     demo_password: str = field(default_factory=lambda: _env("DEMO_PASSWORD", "neurolab2026"))
     seed_demo: bool = field(default_factory=lambda: _env_bool("SEED_DEMO", _env("ENV", "development") != "production"))
+    # Historial de entrenamientos demo en cola (§17); apagado en pruebas para no alterar la cola.
+    seed_history: bool = field(default_factory=lambda: _env_bool("SEED_HISTORY", _env("ENV", "development") == "development"))
 
     cors_origins: list[str] = field(default_factory=lambda: _env_list("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"))
 
