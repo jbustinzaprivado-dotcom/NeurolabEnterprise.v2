@@ -3,7 +3,7 @@
 La base guarda solo metadatos y la clave del objeto (`storage_key`); los archivos viven
 aquí. Dos implementaciones con la misma interfaz:
 
-- `s3`: cualquier servicio compatible con S3 (MinIO en docker-compose, AWS S3).
+- `s3`: cualquier servicio compatible con S3 (SeaweedFS en docker-compose y CI, MinIO, AWS S3).
 - `local`: carpeta `data/` con la misma estructura de claves, como respaldo de desarrollo
   cuando no hay un servicio S3 en la máquina.
 
@@ -152,6 +152,7 @@ class S3ObjectStore:
 def get_store() -> ObjectStore:
     if settings.storage_backend == "s3":
         import boto3
+        from botocore.config import Config
 
         client = boto3.client(
             "s3",
@@ -159,6 +160,14 @@ def get_store() -> ObjectStore:
             aws_access_key_id=settings.s3_access_key or None,
             aws_secret_access_key=settings.s3_secret_key or None,
             region_name=settings.s3_region,
+            # Compatibilidad con servicios S3 propios (SeaweedFS, MinIO): rutas en lugar de
+            # subdominios y sin las sumas de verificación que boto3 ≥ 1.36 exige por defecto.
+            config=Config(
+                s3={"addressing_style": "path"},
+                request_checksum_calculation="when_required",
+                response_checksum_validation="when_required",
+                retries={"max_attempts": 5, "mode": "standard"},
+            ),
         )
         return S3ObjectStore(settings.s3_bucket, client)
     return LocalObjectStore(settings.data_dir)

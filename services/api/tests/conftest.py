@@ -73,7 +73,7 @@ def _fresh_rate_limits():
 
 @pytest.fixture(scope="session")
 def client():
-    # Con NEUROLAB_STORAGE_BACKEND=s3 (la CI usa MinIO) el bucket de pruebas se vacía al empezar.
+    # Con NEUROLAB_STORAGE_BACKEND=s3 (la CI usa SeaweedFS) el bucket de pruebas se vacía al empezar.
     from app.core.storage import get_store
 
     store = get_store()

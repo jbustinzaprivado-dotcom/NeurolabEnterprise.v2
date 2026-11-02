@@ -13,7 +13,7 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Pruebas de integración con PostgreSQL (§15) | Base `neurolab_test`; sin ella, respaldo SQLite con aviso | Cumple con `.env` |
 | Tiempo real WebSocket o SSE (§5) | SSE que reenvía eventos persistidos; `Last-Event-ID` para reanudar | Cumple |
 | Familias progresivas (§18) | Se validan las cuatro; solo FEEDFORWARD entrena | Cumple |
-| Almacenamiento de objetos (§5) | Interfaz única con backend S3 (MinIO en Docker y en la CI, o AWS) y backend local `data/` para desarrollo; producción exige S3 | Cumple (en local, respaldo `data/` mientras no haya MinIO) |
+| Almacenamiento de objetos (§5) | Interfaz única con backend S3 (SeaweedFS en Docker y en la CI; también MinIO o AWS) y backend local `data/` para desarrollo; producción exige S3 | Cumple (en local, respaldo `data/` mientras no haya MinIO) |
 | Proveedor de identidad seguro (§11) | Tokens HMAC propios y bloqueo tras 5 intentos fallidos. El acceso sin token solo existe en desarrollo y la API no arranca con él en producción | Parcial: falta un IdP externo |
 | Límites de tasa (§11) | Por usuario (editable en M10, 600/min por defecto) y por IP en el inicio de sesión (10/min); responde 429 con `Retry-After` | Cumple |
 | Política de retención (§11) | Auditoría, métricas por época y artefactos de modelos retirados; el worker la aplica cada hora y M10 puede lanzarla a mano | Cumple |
@@ -62,7 +62,7 @@ Con la base vacía, la API carga datos demo no sensibles definidos en `app/demo/
   powershell -ExecutionPolicy Bypass -File infra\postgres\probar_respaldo.ps1
   powershell -ExecutionPolicy Bypass -File infra\postgres\restaurar.ps1 -Respaldo <carpeta>
   ```
-  Quedan en `data/backups/<fecha>`: volcado de PostgreSQL, ZIP de datasets y modelos, y manifiesto con checksums. Se conservan los 7 últimos. Con `NEUROLAB_STORAGE_BACKEND=s3` los archivos viven en el bucket: respáldalo con las herramientas del proveedor (por ejemplo `mc mirror` en MinIO).
+  Quedan en `data/backups/<fecha>`: volcado de PostgreSQL, ZIP de datasets y modelos, y manifiesto con checksums. Se conservan los 7 últimos. Con `NEUROLAB_STORAGE_BACKEND=s3` los archivos viven en el bucket: respáldalo con las herramientas del proveedor (por ejemplo `weed` en SeaweedFS o `aws s3 sync`).
 - **Docker:** copia `infra/docker/.env.example` como `infra/docker/.env`, y luego:
   ```
   docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
