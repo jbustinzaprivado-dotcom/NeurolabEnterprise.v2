@@ -5,6 +5,7 @@ import { formatDate, formatRelativeTime } from '@/lib/format';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import {
+  isPlatformAdmin,
   memberRoleMeta,
   projectMemberUsers,
   projectOwner,
@@ -81,9 +82,14 @@ export function ProjectContextTab({ project, users, actor, onOpenDocs }: Project
       </dl>
 
       <section className="pj-access" aria-label="Tu acceso al proyecto">
-        <Icon name={roleMeta && role !== 'reader' ? 'shield' : 'lock'} size={16} />
+        <Icon name={(roleMeta && role !== 'reader') || isPlatformAdmin(actor) ? 'shield' : 'lock'} size={16} />
         <span>
-          {roleMeta ? (
+          {isPlatformAdmin(actor) && !roleMeta ? (
+            <>
+              <strong>Acceso de administración</strong> · No eres miembro, pero tu rol global permite consultar y
+              gestionar este proyecto. Cada acción queda en la auditoría.
+            </>
+          ) : roleMeta ? (
             <>
               <strong>Tu rol: {roleMeta.label}</strong> · {roleMeta.hint}
             </>
