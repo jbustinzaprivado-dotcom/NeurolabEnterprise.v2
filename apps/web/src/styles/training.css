@@ -1046,7 +1046,8 @@ select.tr-input {
   margin-top: 2px;
 }
 
-/* Nombre en columna (registro de modelos): alineado a la izquierda, no centrado. */
+/* .table__name apila en columna; aquí el ícono va a la izquierda del texto (M06, M08). */
 .table__name.tr-queue__pick {
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
 }
