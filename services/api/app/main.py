@@ -27,7 +27,7 @@ from app.core.database import SessionLocal, migrate
 from app.core.log_config import configure_logging
 from app.core.metrics import http_latency, http_requests, rate_limited, registry
 from app.core.rate_limit import limit_cache, limiter
-from app.core.security import decode_token
+from app.core.security import bearer_subject
 from app.services import audit, platform_settings
 
 configure_logging("api")
@@ -80,7 +80,7 @@ def metrics(request: Request) -> Response:
 
 def _subject(request: Request) -> str | None:
     header = request.headers.get("Authorization", "")
-    return decode_token(header[7:].strip()) if header.lower().startswith("bearer ") else None
+    return bearer_subject(header[7:].strip()) if header.lower().startswith("bearer ") else None
 
 
 @app.middleware("http")

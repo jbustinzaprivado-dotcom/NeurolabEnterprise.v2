@@ -936,6 +936,39 @@
   font-size: var(--fs-sm);
 }
 
+.session-gate--login {
+  width: min(100%, 380px);
+  margin: 0 auto;
+  justify-items: stretch;
+  text-align: left;
+}
+
+.session-gate--login > svg,
+.session-gate--login > h1,
+.session-gate--login > p {
+  justify-self: center;
+  text-align: center;
+}
+
+.session-gate--login > svg {
+  color: var(--brand);
+}
+
+.session-gate__field {
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.session-gate__error {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
 .pop__users {
   max-height: 260px;
   overflow-y: auto;

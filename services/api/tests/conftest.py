@@ -53,6 +53,8 @@ else:
 os.environ["NEUROLAB_DATA_DIR"] = _DATA_DIR
 os.environ["NEUROLAB_ENV"] = "test"
 os.environ["NEUROLAB_AUTH_DEV_BYPASS"] = "false"
+# Las pruebas usan tokens propios; el proveedor OIDC se prueba aparte con claves locales.
+os.environ["NEUROLAB_AUTH_PROVIDER"] = "local"
 os.environ["NEUROLAB_SEED_DEMO"] = "true"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 

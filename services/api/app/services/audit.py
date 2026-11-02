@@ -16,6 +16,7 @@ client_ip: ContextVar[str] = ContextVar("client_ip", default="")
 CATALOG: dict[str, tuple[str, str, str]] = {
     "auth.login": ("Inicio de sesión", "ACCESO", "info"),
     "auth.invite_accepted": ("Invitación aceptada", "ACCESO", "info"),
+    "auth.linked": ("Cuenta enlazada con el proveedor de identidad", "ACCESO", "info"),
     "auth.failed": ("Inicio de sesión fallido", "ACCESO", "warning"),
     "auth.locked": ("Cuenta bloqueada por intentos fallidos", "ACCESO", "critical"),
     "retention.applied": ("Política de retención aplicada", "CONFIGURACION", "info"),

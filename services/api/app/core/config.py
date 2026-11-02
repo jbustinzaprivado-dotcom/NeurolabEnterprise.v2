@@ -57,7 +57,9 @@ class Settings:
     secret_key: str = field(default_factory=lambda: _env("SECRET_KEY", ""))
     token_ttl_minutes: int = field(default_factory=lambda: int(_env("TOKEN_TTL_MINUTES", "480")))
     # Solo desarrollo: sin cabecera Authorization se actúa como el usuario demo.
-    auth_dev_bypass: bool = field(default_factory=lambda: _env_bool("AUTH_DEV_BYPASS", _env("ENV", "development") == "development"))
+    # Con proveedor de identidad (oidc) queda apagado salvo que se pida, y entonces no arranca.
+    auth_dev_bypass: bool = field(default_factory=lambda: _env_bool(
+        "AUTH_DEV_BYPASS", _env("ENV", "development") == "development" and _env("AUTH_PROVIDER", "local") == "local"))
     dev_user_id: str = field(default_factory=lambda: _env("DEV_USER_ID", "USR-207"))
     demo_password: str = field(default_factory=lambda: _env("DEMO_PASSWORD", "neurolab2026"))
     seed_demo: bool = field(default_factory=lambda: _env_bool("SEED_DEMO", _env("ENV", "development") != "production"))
@@ -90,6 +92,13 @@ class Settings:
     # En contenedores la API escucha en 0.0.0.0; en local, solo en la propia máquina.
     host: str = field(default_factory=lambda: _env("HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(_env("PORT", "8000")))
+    # Proveedor de identidad (§11): "local" (contraseñas propias, desarrollo y pruebas) u "oidc".
+    auth_provider: str = field(default_factory=lambda: _env("AUTH_PROVIDER", "local"))
+    oidc_issuer: str = field(default_factory=lambda: _env("OIDC_ISSUER", "").rstrip("/"))
+    oidc_audience: str = field(default_factory=lambda: _env("OIDC_AUDIENCE", "neurolab-api"))
+    oidc_client_id: str = field(default_factory=lambda: _env("OIDC_CLIENT_ID", "neurolab-web"))
+    # Dirección desde la que la API alcanza al proveedor si difiere de la pública (p. ej. en Docker).
+    oidc_internal_url: str = field(default_factory=lambda: _env("OIDC_INTERNAL_URL", "").rstrip("/"))
     # Límites de tasa y bloqueo de cuentas (§11).
     rate_limit_per_minute: int = field(default_factory=lambda: int(_env("RATE_LIMIT_PER_MINUTE", "600")))
     login_attempts_per_minute: int = field(default_factory=lambda: int(_env("LOGIN_ATTEMPTS_PER_MINUTE", "10")))
@@ -118,8 +127,8 @@ class Settings:
         """PostgreSQL (§5); las credenciales viven en `.env`, nunca en el código (§11)."""
         if not self.database_url:
             raise RuntimeError(
-                "Falta NEUROLAB_DATABASE_URL. Crea la base con infra/postgres/crear_base.sql y copia "
-                ".env.example como .env (ver services/api/README.md)."
+                "Falta NEUROLAB_DATABASE_URL. Ejecuta infra/postgres/crear_base.ps1, que la crea "
+                "y la deja en .env (ver services/api/README.md)."
             )
         return self.database_url
 
@@ -133,6 +142,12 @@ class Settings:
 
     def check_runtime(self) -> None:
         """Se niega a arrancar con configuraciones de desarrollo fuera de desarrollo (§11)."""
+        if self.auth_provider not in {"local", "oidc"}:
+            raise RuntimeError("NEUROLAB_AUTH_PROVIDER debe ser 'local' u 'oidc'.")
+        if self.oidc_enabled and not self.oidc_issuer:
+            raise RuntimeError("Falta NEUROLAB_OIDC_ISSUER para el proveedor de identidad.")
+        if self.oidc_enabled and self.auth_dev_bypass:
+            raise RuntimeError("Con NEUROLAB_AUTH_PROVIDER=oidc no se admite NEUROLAB_AUTH_DEV_BYPASS: la identidad la da el proveedor.")
         if self.env == "production":
             if self.auth_dev_bypass:
                 raise RuntimeError("NEUROLAB_AUTH_DEV_BYPASS no puede estar activo en producción.")
@@ -141,6 +156,12 @@ class Settings:
             self.resolved_secret_key  # noqa: B018  exige NEUROLAB_SECRET_KEY
             if self.storage_backend != "s3":
                 raise RuntimeError("En producción los archivos van a un almacén de objetos: NEUROLAB_STORAGE_BACKEND=s3 (§5).")
+            if self.auth_provider != "oidc" or not self.oidc_issuer:
+                raise RuntimeError("En producción la identidad la gestiona un proveedor externo: NEUROLAB_AUTH_PROVIDER=oidc y NEUROLAB_OIDC_ISSUER (§11).")
+
+    @property
+    def oidc_enabled(self) -> bool:
+        return self.auth_provider == "oidc"
 
     def ensure_dirs(self) -> None:
         for path in (self.uploads_dir, self.models_dir, self.logs_dir):

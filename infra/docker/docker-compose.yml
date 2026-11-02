@@ -3,7 +3,7 @@
 #   docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
 #
 # Copia infra/docker/.env.example como infra/docker/.env y rellena las claves.
-# Web: http://localhost:8080 · Prometheus: http://localhost:9090
+# Web: http://localhost:8080 · Keycloak: http://localhost:8180 · Prometheus: http://localhost:9090
 
 name: neurolab
 
@@ -14,8 +14,10 @@ services:
       POSTGRES_USER: neurolab
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en infra/docker/.env}
       POSTGRES_DB: neurolab
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Define KEYCLOAK_DB_PASSWORD en infra/docker/.env}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./keycloak-db.sh:/docker-entrypoint-initdb.d/10-keycloak.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U neurolab -d neurolab"]
       interval: 5s
@@ -37,6 +39,26 @@ services:
     volumes:
       - objetos:/data
 
+  # Proveedor de identidad (§11): Keycloak con el reino de NeuroLab. La interfaz inicia sesión
+  # en http://localhost:8180 (Authorization Code + PKCE) y la API valida sus tokens.
+  # Sin HTTPS todavía (fase 6): solo para uso en la propia máquina.
+  identidad:
+    image: keycloak/keycloak:26.8.1
+    command: ["start", "--import-realm", "--http-enabled=true", "--http-port=8180",
+              "--hostname=http://localhost:8180", "--health-enabled=true"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Define KEYCLOAK_ADMIN_PASSWORD en infra/docker/.env}
+    volumes:
+      - ../keycloak/neurolab-realm.json:/opt/keycloak/data/import/neurolab-realm.json:ro
+    ports: ["8180:8180"]
+    depends_on:
+      db: { condition: service_healthy }
+
   api:
     build: { context: ../.., dockerfile: infra/docker/python.Dockerfile }
     environment: &backend-env
@@ -44,6 +66,10 @@ services:
       NEUROLAB_DATABASE_URL: postgresql+psycopg2://neurolab:${POSTGRES_PASSWORD}@db:5432/neurolab
       NEUROLAB_SECRET_KEY: ${NEUROLAB_SECRET_KEY:?Define NEUROLAB_SECRET_KEY en infra/docker/.env}
       NEUROLAB_AUTH_DEV_BYPASS: "false"
+      NEUROLAB_AUTH_PROVIDER: oidc
+      NEUROLAB_OIDC_ISSUER: http://localhost:8180/realms/neurolab
+      # Dentro de la red de Docker la API alcanza a Keycloak por su nombre de servicio.
+      NEUROLAB_OIDC_INTERNAL_URL: http://identidad:8180/realms/neurolab
       NEUROLAB_SEED_DEMO: ${NEUROLAB_SEED_DEMO:-true}
       NEUROLAB_SEED_HISTORY: "false"
       NEUROLAB_CORS_ORIGINS: http://localhost:8080
@@ -56,6 +82,7 @@ services:
     depends_on:
       db: { condition: service_healthy }
       objetos: { condition: service_started }
+      identidad: { condition: service_started }
     # El almacén de objetos puede tardar unos segundos en aceptar peticiones al arrancar.
     restart: on-failure
     expose: ["8000"]

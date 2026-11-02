@@ -109,4 +109,11 @@ def test_production_refuses_development_settings(monkeypatch):
         Settings().check_runtime()
 
     monkeypatch.setenv("NEUROLAB_STORAGE_BACKEND", "s3")
+    # Ni sin proveedor de identidad externo (§11).
+    monkeypatch.setenv("NEUROLAB_AUTH_PROVIDER", "local")
+    with pytest.raises(RuntimeError, match="AUTH_PROVIDER=oidc"):
+        Settings().check_runtime()
+
+    monkeypatch.setenv("NEUROLAB_AUTH_PROVIDER", "oidc")
+    monkeypatch.setenv("NEUROLAB_OIDC_ISSUER", "https://id.example.org/realms/neurolab")
     Settings().check_runtime()

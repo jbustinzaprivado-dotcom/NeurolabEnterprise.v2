@@ -68,6 +68,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Proveedor de identidad (§11): si .env usa OIDC, Keycloak arranca en su propia ventana.
+findstr /b /c:"NEUROLAB_AUTH_PROVIDER=oidc" .env >nul 2>&1
+if not errorlevel 1 (
+    echo [identidad] Iniciando Keycloak en una ventana nueva ^(http://localhost:8180^)...
+    start "NeuroLab Keycloak" /D "%~dp0" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -File "infra\keycloak\iniciar.ps1"
+)
+
 echo [api] Iniciando FastAPI en una ventana nueva ^(aplica las migraciones al arrancar^)...
 start "NeuroLab API" /D "%~dp0" cmd /k venv\Scripts\python.exe %API_ENTRY%
 
@@ -90,6 +97,7 @@ echo.
 echo ============================================
 echo   Web:  http://localhost:5173
 echo   API:  http://localhost:8000/docs
+echo   Identidad ^(si usa OIDC^): http://localhost:8180
 echo ============================================
 echo.
 echo Cierra las ventanas abiertas para detener los servicios.

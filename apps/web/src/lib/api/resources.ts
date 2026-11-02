@@ -1,3 +1,4 @@
+import type { OidcConfig } from '@/lib/auth/oidc';
 /* Contratos de la API (`services/api`) y adaptadores a los tipos que ya usa la interfaz.
    La API responde en camelCase; aquí se tipan sus respuestas y se agrupan las llamadas
    por recurso para que las pantallas no conozcan rutas ni formatos de transporte. */
@@ -34,7 +35,15 @@ export interface ClientConfig {
   version: string;
 }
 
+export type AuthConfig = { devLogin: boolean } & (
+  | { provider: 'local' }
+  | ({ provider: 'oidc' } & Omit<OidcConfig, 'provider'>)
+);
+
 export const sessionApi = {
+  authConfig: () => api.get<AuthConfig>('/auth/config'),
+  /** Tras volver del proveedor: la API registra el inicio de sesión (§11). */
+  startSession: () => api.post<ApiUser>('/auth/session'),
   me: () => api.get<ApiUser>('/auth/me'),
   login: (email: string, password: string) => api.post<SessionToken>('/auth/login', { email, password }),
   devLogin: (userId: string) => api.post<SessionToken>('/auth/dev-login', { userId }),

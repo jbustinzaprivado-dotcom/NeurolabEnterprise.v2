@@ -18,6 +18,7 @@ export const queryClient = new QueryClient({
 });
 
 export const queryKeys = {
+  authConfig: ['auth-config'] as const,
   session: ['session'] as const,
   dashboard: ['dashboard'] as const,
   catalog: ['catalog'] as const,

@@ -1,0 +1,243 @@
+{
+  "realm": "neurolab",
+  "displayName": "NeuroLab Enterprise",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "waitIncrementSeconds": 60,
+  "passwordPolicy": "length(10) and digits(1) and notUsername and notEmail",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 28800,
+  "defaultSignatureAlgorithm": "RS256",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "es",
+    "en"
+  ],
+  "defaultLocale": "es",
+  "clients": [
+    {
+      "clientId": "neurolab-web",
+      "name": "NeuroLab Enterprise (web)",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:8080/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "audiencia-neurolab-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "neurolab-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "sofia.ramirez",
+      "email": "sofia.ramirez@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Sofía",
+      "lastName": "Ramírez Castro",
+      "attributes": {
+        "neurolab_id": [
+          "USR-201"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ana.quispe",
+      "email": "ana.quispe@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Ana",
+      "lastName": "Quispe Ramos",
+      "attributes": {
+        "neurolab_id": [
+          "USR-207"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "luis.paredes",
+      "email": "luis.paredes@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Luis",
+      "lastName": "Paredes Soto",
+      "attributes": {
+        "neurolab_id": [
+          "USR-212"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "rosa.medina",
+      "email": "rosa.medina@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Rosa",
+      "lastName": "Medina Vega",
+      "attributes": {
+        "neurolab_id": [
+          "USR-218"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "diego.salas",
+      "email": "diego.salas@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Diego",
+      "lastName": "Salas Rojas",
+      "attributes": {
+        "neurolab_id": [
+          "USR-223"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "carla.nunez",
+      "email": "carla.nunez@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Carla",
+      "lastName": "Núñez Prado",
+      "attributes": {
+        "neurolab_id": [
+          "USR-231"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "marco.herrera",
+      "email": "marco.herrera@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Marco",
+      "lastName": "Herrera León",
+      "attributes": {
+        "neurolab_id": [
+          "USR-236"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "elena.torres",
+      "email": "elena.torres@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Elena",
+      "lastName": "Torres Gil",
+      "attributes": {
+        "neurolab_id": [
+          "USR-244"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "jorge.campos",
+      "email": "jorge.campos@neurolab.enterprise",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Jorge",
+      "lastName": "Campos Ríos",
+      "attributes": {
+        "neurolab_id": [
+          "USR-251"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "neurolab2026",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import DB, CurrentUser
 from app.core.config import settings
 from app.core.database import utcnow
+from app.core.oidc import OidcError, get_verifier
 from app.core.security import issue_token, verify_password
 from app.repositories.models import User
 from app.schemas.common import CamelModel
@@ -37,8 +38,44 @@ def _start_session(db: Session, user: User) -> TokenOut:
     return TokenOut(access_token=token, expires_at=expires_at, user=user_out(user))
 
 
+_IDP_ONLY = "El inicio de sesión se hace con el proveedor de identidad de la organización."
+
+
+@router.get("/auth/config")
+def auth_config() -> dict:
+    """Pública: cómo iniciar sesión. La interfaz la lee antes de tener token."""
+    if settings.oidc_enabled:
+        try:
+            endpoints = get_verifier().browser_endpoints()
+        except OidcError as exc:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
+                                "El proveedor de identidad no responde. Comprueba que Keycloak esté en marcha.") from exc
+        return {
+            "provider": "oidc",
+            "issuer": settings.oidc_issuer,
+            "clientId": settings.oidc_client_id,
+            "devLogin": False,
+            **endpoints,
+        }
+    return {"provider": "local", "devLogin": settings.auth_dev_bypass}
+
+
+@router.post("/auth/session", response_model=UserOut)
+def oidc_session(user: CurrentUser, db: DB) -> UserOut:
+    """La interfaz lo llama al volver del proveedor: deja constancia del inicio de sesión."""
+    if not settings.oidc_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No disponible.")
+    user.failed_logins = 0
+    audit.record(db, user.id, "auth.login", "user", user.id, proveedor="oidc")
+    db.commit()
+    return user_out(user)
+
+
 @router.post("/auth/login", response_model=TokenOut)
 def login(payload: LoginIn, db: DB) -> TokenOut:
+    if settings.oidc_enabled:
+        # Con proveedor externo, NeuroLab no guarda ni comprueba contraseñas (§11).
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _IDP_ONLY)
     user = db.scalar(select(User).where(func.lower(User.email) == payload.email.strip().lower()))
     # Mismo mensaje para usuario inexistente y contraseña errónea.
     if user is None:
@@ -66,7 +103,7 @@ _LOCKED_MESSAGE = "Cuenta bloqueada por intentos fallidos. Solicita el desbloque
 @router.post("/auth/dev-login", response_model=TokenOut)
 def dev_login(payload: DevLoginIn, db: DB) -> TokenOut:
     """Solo desarrollo: cambia de usuario demo sin contraseña para probar los roles."""
-    if not settings.auth_dev_bypass:
+    if not settings.auth_dev_bypass or settings.oidc_enabled:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No disponible.")
     user = db.get(User, payload.user_id)
     if user is None:

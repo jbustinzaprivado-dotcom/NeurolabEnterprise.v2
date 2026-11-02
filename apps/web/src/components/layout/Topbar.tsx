@@ -37,7 +37,7 @@ function useDismissable<T extends HTMLElement>(onClose: () => void) {
 export function Topbar({ mode, onOpenNav }: TopbarProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { snapshot, refresh, lastUpdated } = usePlatformData();
-  const { actor, users, config, signedIn, switchUser, signOut } = useSession();
+  const { actor, users, config, provider, signedIn, switchUser, signOut } = useSession();
 
   const [openPanel, setOpenPanel] = useState<'alerts' | 'profile' | null>(null);
   const [term, setTerm] = useState(searchParams.get('q') ?? '');
@@ -206,7 +206,13 @@ export function Topbar({ mode, onOpenNav }: TopbarProps) {
                       <Icon name="logout" size={16} />
                       <span>
                         <strong>Cerrar sesión</strong>
-                        <em>{config.devLogin ? 'Vuelve al usuario demo por defecto' : 'Se descarta el token de esta sesión'}</em>
+                        <em>
+                          {provider === 'oidc'
+                            ? 'También en el proveedor de identidad'
+                            : config.devLogin
+                              ? 'Vuelve al usuario demo por defecto'
+                              : 'Se descarta el token de esta sesión'}
+                        </em>
                       </span>
                     </button>
                   </li>

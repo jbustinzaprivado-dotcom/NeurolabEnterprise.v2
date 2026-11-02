@@ -25,14 +25,23 @@ function readToken(): string | null {
   }
 }
 
-export function setAccessToken(token: string | null) {
+/** `persist: false` deja el token solo en memoria (el módulo OIDC guarda los suyos aparte). */
+export function setAccessToken(token: string | null, persist = true) {
   accessToken = token;
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
+    if (token && persist) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
   } catch {
     /* Modo privado: la sesión vive solo en memoria. */
   }
+}
+
+/* Con proveedor de identidad, un 401 suele ser un token de acceso recién expirado: se
+   renueva una vez y se repite la petición antes de dar la sesión por terminada. */
+let onUnauthorized: (() => Promise<boolean>) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => Promise<boolean>) | null) {
+  onUnauthorized = handler;
 }
 
 export function hasAccessToken(): boolean {
@@ -70,6 +79,17 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  try {
+    return await send<T>(path, options);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401 && onUnauthorized && (await onUnauthorized())) {
+      return send<T>(path, options);
+    }
+    throw error;
+  }
+}
+
+async function send<T>(path: string, options: RequestOptions): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, body, ...init } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -92,7 +112,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      if (response.status === 401 && accessToken) setAccessToken(null);
+      if (response.status === 401 && accessToken && !onUnauthorized) setAccessToken(null);
       throw new ApiError(response.status, describeError(response.status, text), text.slice(0, 400));
     }
 

@@ -14,7 +14,7 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Tiempo real WebSocket o SSE (§5) | SSE que reenvía eventos persistidos; `Last-Event-ID` para reanudar | Cumple |
 | Familias progresivas (§18) | Se validan las cuatro; solo FEEDFORWARD entrena | Cumple |
 | Almacenamiento de objetos (§5) | Interfaz única con backend S3 (SeaweedFS en Docker y en la CI; también MinIO o AWS) y backend local `data/` para desarrollo; producción exige S3 | Cumple (en local, respaldo `data/` mientras no haya MinIO) |
-| Proveedor de identidad seguro (§11) | Tokens HMAC propios y bloqueo tras 5 intentos fallidos. El acceso sin token solo existe en desarrollo y la API no arranca con él en producción | Parcial: falta un IdP externo |
+| Proveedor de identidad seguro (§11) | Keycloak 26.8.1 (reino `neurolab`, `infra/keycloak`). La interfaz entra con Authorization Code + PKCE; la API valida tokens RS256 por JWKS (emisor, audiencia `neurolab-api`, expiración) y enlaza cada cuenta con su usuario de NeuroLab. En producción la API no arranca sin OIDC. El modo `local` (contraseñas propias, bloqueo tras 5 intentos) queda para pruebas | Cumple; HTTPS pendiente (fase 6) |
 | Límites de tasa (§11) | Por usuario (editable en M10, 600/min por defecto) y por IP en el inicio de sesión (10/min); responde 429 con `Retry-After` | Cumple |
 | Política de retención (§11) | Auditoría, métricas por época y artefactos de modelos retirados; el worker la aplica cada hora y M10 puede lanzarla a mano | Cumple |
 | Cifrado en tránsito (§11) | HTTP en local; HTTPS va con el despliegue | Pendiente (fase 6) |
@@ -23,13 +23,13 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Métricas (§5) | Prometheus en `/metrics` (solo red interna) y `infra/monitoring/prometheus.yml` | Cumple |
 | Copias de seguridad probadas (§11) | `respaldo.ps1`, `restaurar.ps1` y `probar_respaldo.ps1` en `infra/postgres` | Cumple; ejecutar tras crear la base |
 | CI (§14, §15) | GitHub Actions: pruebas contra PostgreSQL, `alembic check` y build del frontend | Cumple |
-| Docker (§5) | `infra/docker`: imágenes de API/worker y web, compose con PostgreSQL y Prometheus | Escrito; sin probar localmente (Docker no instalado) |
+| Docker (§5) | `infra/docker`: imágenes de API/worker y web, compose con PostgreSQL, SeaweedFS, Keycloak y Prometheus | Escrito; sin probar localmente (Docker no instalado) |
 
 Donde el documento no especifica: la cola de trabajos usa la propia tabla `training_jobs` (el worker reclama con UPDATE condicional) y los datasets admitidos son CSV.
 
 ## Base de datos (primera vez)
 
-`run.bat` llama a `infra/postgres/crear_base.ps1`, que crea el usuario `neurolab` y las bases `neurolab` y `neurolab_test` en el PostgreSQL local y guarda la conexión en `.env`. Pide la contraseña del superusuario `postgres` una sola vez. Para hacerlo a mano:
+`run.bat` llama a `infra/postgres/crear_base.ps1`, que crea en el PostgreSQL local el usuario `neurolab` con las bases `neurolab` y `neurolab_test`, y el usuario `keycloak` con su base `keycloak`. Guarda en `.env` las conexiones, las claves generadas al azar y la configuración del proveedor de identidad. Pide la contraseña del superusuario `postgres` una sola vez; si `.env` ya tiene todo, no hace nada. Para hacerlo a mano:
 
 ```
 powershell -ExecutionPolicy Bypass -File infra\postgres\crear_base.ps1
@@ -41,6 +41,22 @@ Cambios de esquema: edita `app/repositories/models.py` y genera la migración:
 cd services\api
 ..\..\venv\Scripts\python.exe -m alembic revision --autogenerate -m "descripcion"
 ```
+
+## Proveedor de identidad (§11)
+
+Keycloak está en `Downloads\Semana 12\herramientas\keycloak-26.8.1` (fuera del repositorio; necesita Java 21 o superior; aquí se usa el JDK 25). `run.bat` lo arranca cuando `.env` tiene `NEUROLAB_AUTH_PROVIDER=oidc`. A mano:
+
+```
+powershell -ExecutionPolicy Bypass -File infra\keycloak\iniciar.ps1
+```
+
+- La primera vez importa `infra/keycloak/neurolab-realm.json`: el cliente público `neurolab-web` y los 9 usuarios demo (usuario = parte del correo antes de `@`, por ejemplo `ana.quispe`; contraseña `neurolab2026`).
+- Consola de administración: http://localhost:8180/admin, usuario `admin`, clave `KEYCLOAK_ADMIN_PASSWORD` de `.env`.
+- Keycloak aplica su propia política de contraseñas y el bloqueo tras 5 intentos fallidos.
+- Roles y permisos por proyecto siguen en NeuroLab. Una cuenta de Keycloak entra solo si su correo verificado coincide con un usuario de NeuroLab. En el primer acceso queda enlazada por su identificador (`sub`), y la auditoría registra `auth.linked`.
+- Para dar acceso a alguien nuevo: invítalo en M10 y crea su cuenta en Keycloak con el mismo correo.
+- `-BaseLocal` usa la base de archivos interna de Keycloak en lugar de PostgreSQL (solo para pruebas rápidas).
+- Para volver a contraseñas propias y al cambio de usuario demo, pon en `.env` `NEUROLAB_AUTH_PROVIDER=local` y `NEUROLAB_AUTH_DEV_BYPASS=true`.
 
 ## Datos demo (§17)
 
@@ -67,7 +83,7 @@ Con la base vacía, la API carga datos demo no sensibles definidos en `app/demo/
   ```
   docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
   ```
-  Web en http://localhost:8080 y Prometheus en http://localhost:9090.
+  Web en http://localhost:8080, Keycloak en http://localhost:8180 y Prometheus en http://localhost:9090.
 
 ## Ejecutar
 
@@ -78,7 +94,7 @@ venv\Scripts\python.exe services\api\app\main.py      # API → http://localhost
 venv\Scripts\python.exe workers\training\main.py      # worker
 ```
 
-El frontend consume solo la API (no hay datos simulados). Sin token, la API de desarrollo actúa como Ana Quispe; desde el menú de perfil se cambia a cualquier usuario demo para probar los roles (`POST /auth/dev-login`, solo con `NEUROLAB_AUTH_DEV_BYPASS=true`).
+El frontend consume solo la API (no hay datos simulados). Con OIDC, la interfaz pide iniciar sesión en Keycloak; para probar otro rol, cierra sesión y entra con otro usuario demo. En modo `local` con `NEUROLAB_AUTH_DEV_BYPASS=true`, sin token la API actúa como Ana Quispe y el menú de perfil cambia de usuario demo (`POST /auth/dev-login`).
 
 Usuarios demo (contraseña `neurolab2026`): `ana.quispe@neurolab.enterprise` (owner de PRJ-101), `rosa.medina@…` (revisora), `carla.nunez@…` (lectora), `sofia.ramirez@…` (admin), `diego.salas@…` (ajeno a PRJ-101).
 
@@ -95,7 +111,8 @@ Usan la base `neurolab_test` de `.env` (se borra y se vuelve a migrar en cada ej
 
 | Método | Ruta | Uso |
 |---|---|---|
-| POST | `/auth/login` · `/auth/dev-login` · GET `/auth/me` · `/users` · `/config` | Sesión, directorio y límites vigentes |
+| GET | `/auth/config` (pública) | Cómo iniciar sesión: proveedor, cliente y direcciones de Keycloak |
+| POST | `/auth/session` (OIDC) · `/auth/login` · `/auth/dev-login` (local) · GET `/auth/me` · `/users` · `/config` | Sesión, directorio y límites vigentes |
 | GET/POST | `/projects` · GET/PATCH `/projects/{id}` | Proyectos accesibles |
 | POST/DELETE | `/projects/{id}/members[/{userId}]` | Miembros (solo owner) |
 | POST/PATCH/DELETE | `/projects/{id}/documents[/{docId}]` | Documentación (owner/engineer) |
