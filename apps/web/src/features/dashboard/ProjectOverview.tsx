@@ -19,7 +19,10 @@ export function ProjectOverview({ projects }: { projects: ProjectSummary[] }) {
       icon="projects"
       footer={
         <>
-          <span>{projects.length} proyectos con acceso para su rol.</span>
+          <span>
+            {projects.length === 1 ? 'El proyecto' : `Los ${projects.length} proyectos`} con actividad más reciente entre los que
+            tienes acceso.
+          </span>
           <a href="/projects">Abrir el listado completo</a>
         </>
       }

@@ -39,6 +39,8 @@ export function scoreName(task: JobTask): string {
 
 /** Métrica de comparación formateada, p. ej. "91,3 %" o "87.569". */
 export function formatScore(job: TrainingJob): string {
+  // Sin épocas (p. ej. cancelado en cola) no hay métrica: un 0 % sería engañoso.
+  if (job.epoch === 0) return '—';
   if (job.task === 'regression') return job.valMae !== null ? formatErrorAmount(job.valMae) : '—';
   return formatRate(job.valAccuracy, 1);
 }

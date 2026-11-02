@@ -41,7 +41,7 @@ export function SystemStatusPanel({ health }: { health: SystemHealth }) {
       actions={
         <span className="chip chip--outline">
           <Icon name="gauge" size={13} />
-          {formatNumber(health.apiLatencyMs, 0)} ms
+          {health.apiLatencyMs < 1 ? '<1' : formatNumber(health.apiLatencyMs, 0)} ms
         </span>
       }
     >

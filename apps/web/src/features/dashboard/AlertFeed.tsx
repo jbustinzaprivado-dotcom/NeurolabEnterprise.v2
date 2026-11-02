@@ -28,7 +28,7 @@ export function AlertFeed({ alerts }: { alerts: PlatformAlert[] }) {
         body="tight"
         actions={
           <Chip tone={critical > 0 ? 'failed' : 'neutral'} dot>
-            {alerts.length} abiertas
+            {alerts.length} {alerts.length === 1 ? 'abierta' : 'abiertas'}
           </Chip>
         }
         footer={

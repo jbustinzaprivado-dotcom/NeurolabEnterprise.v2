@@ -768,14 +768,16 @@
 .status-grid {
   display: grid;
   gap: var(--sp-2);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
 }
 
+/* En tarjetas angostas la etiqueta y el valor pasan a dos líneas en vez de montarse. */
 .status-line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
+  gap: var(--sp-1) var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
