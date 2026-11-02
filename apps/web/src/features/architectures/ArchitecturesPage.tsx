@@ -52,9 +52,11 @@ export function ArchitecturesPage() {
     () => catalog.projects.filter((project) => project.permissions.includes('architecture.write')),
     [catalog.projects],
   );
-  // Por defecto, el primer proyecto no archivado: un archivado se conserva para trazabilidad.
+  // Por defecto, un proyecto activo de la misma familia que se diseña; luego cualquiera no
+  // archivado (un archivado se conserva para trazabilidad).
   const targetProject =
     writableProjects.find((project) => project.id === targetProjectId) ??
+    writableProjects.find((project) => project.status === 'ACTIVE' && project.family === config.family) ??
     writableProjects.find((project) => project.status !== 'ARCHIVED') ??
     writableProjects[0] ??
     null;
