@@ -16,16 +16,24 @@ import { ProjectContextTab } from '@/features/projects/ProjectContextTab';
 import { ProjectMembersTab } from '@/features/projects/ProjectMembersTab';
 import { ProjectDocsTab } from '@/features/projects/ProjectDocsTab';
 import {
+  ProjectArchitecturesTab,
+  ProjectDatasetsTab,
+  ProjectHistoryTab,
+  ProjectModelsTab,
+  ProjectTrainingTab,
+} from '@/features/projects/ProjectWorkTabs';
+import {
   canEditDocumentation,
   canEditProject,
   canManageMembers,
   projectOwner,
 } from '@/features/projects/model';
 
-export type ProjectTab = 'context' | 'members' | 'docs';
+export type ProjectTab = 'context' | 'members' | 'docs' | 'architecture' | 'dataset' | 'training' | 'models' | 'history';
 
 interface ProjectDetailProps {
-  project: ProjectRecord | null;
+  /** `permissions` llega de la API (GET /projects) con lo que el rol permite en el proyecto. */
+  project: (ProjectRecord & { permissions?: string[] }) | null;
   users: DirectoryUser[];
   actor: Actor;
   tab: ProjectTab;
@@ -43,11 +51,26 @@ interface ProjectDetailProps {
   onClose: () => void;
 }
 
+/* §7: Contexto, Arquitectura, Dataset, Entrenamientos, Modelos e Historial; Miembros y
+   Documentación completan el M02 (§6: miembros, permisos, documentación y etiquetas). */
 const TABS: Array<{ id: ProjectTab; label: string }> = [
   { id: 'context', label: 'Contexto' },
+  { id: 'architecture', label: 'Arquitectura' },
+  { id: 'dataset', label: 'Dataset' },
+  { id: 'training', label: 'Entrenamientos' },
+  { id: 'models', label: 'Modelos' },
+  { id: 'history', label: 'Historial' },
   { id: 'members', label: 'Miembros' },
   { id: 'docs', label: 'Documentación' },
 ];
+
+const WORK_TABS = {
+  architecture: ProjectArchitecturesTab,
+  dataset: ProjectDatasetsTab,
+  training: ProjectTrainingTab,
+  models: ProjectModelsTab,
+  history: ProjectHistoryTab,
+} as const;
 
 export function ProjectDetail({
   project,
@@ -123,6 +146,11 @@ export function ProjectDetail({
         </span>
         <span className="pj-foot-note">Actualizado {formatRelativeTime(project.updatedAt)}</span>
       </>
+    ) : tab in WORK_TABS ? (
+      <span className="pj-foot-note">
+        <Icon name="info" size={13} /> Para crear o cambiar elementos, abre el módulo correspondiente; la API
+        comprueba tu rol en cada acción.
+      </span>
     ) : tab === 'members' ? (
       <>
         <span className="pj-foot-note">
@@ -241,6 +269,11 @@ export function ProjectDetail({
                 actor={actor}
                 onOpenDocs={() => onTab('docs')}
               />
+            ) : tab in WORK_TABS ? (
+              (() => {
+                const WorkTab = WORK_TABS[tab as keyof typeof WORK_TABS];
+                return <WorkTab project={project} permissions={project.permissions ?? []} />;
+              })()
             ) : tab === 'members' ? (
               <ProjectMembersTab
                 project={project}

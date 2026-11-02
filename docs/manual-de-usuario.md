@@ -50,10 +50,17 @@ El entrenamiento continúa en el servidor aunque cierres esta pantalla o el nave
 - **Cartera:** filtra por estado (borrador, activo, archivado), familia o etiqueta.
 - **Ficha del proyecto**, con pestañas internas:
   - **Contexto:** descripción del problema, responsable, familia, estado y etiquetas. El owner los edita.
+  - **Arquitectura:** versiones de la red del proyecto, con su familia, número de capas, parámetros y si ya se puede entrenar.
+  - **Dataset:** versiones de datos, con filas × columnas, tamaño, particiones y estado.
+  - **Entrenamientos:** trabajos en cola o en ejecución, con su progreso y su época actual.
+  - **Modelos:** versiones registradas, con su estado de revisión y su métrica principal de prueba (accuracy o R²).
+  - **Historial:** cada ejecución terminada con fecha, versión, duración, estado y parámetros principales.
+    - Acciones autorizadas: **Evaluación** abre el M07; **Reintentar** está disponible en trabajos fallidos o cancelados, para quien puede lanzar entrenamientos.
+    - **Exportar CSV** descarga el historial completo del proyecto.
   - **Miembros:** el owner añade o quita miembros y asigna su rol (owner, ingeniero, revisor o lector). Cada cambio queda en la auditoría.
   - **Documentación:** documentos de contexto del proyecto, que escriben el owner y los ingenieros.
 
-  Las arquitecturas, datasets, entrenamientos y modelos del proyecto se consultan en sus módulos (M04 a M08), filtrando por proyecto.
+  Las pestañas Arquitectura, Dataset, Entrenamientos, Modelos e Historial resumen lo que el proyecto ya tiene. Para crear o cambiar algo, cada una enlaza a su módulo (M04 a M08).
 
 Solo ves los proyectos de los que eres miembro.
 

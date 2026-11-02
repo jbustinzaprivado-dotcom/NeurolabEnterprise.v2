@@ -4,22 +4,15 @@ import { useSession } from '@/app/session';
 import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { modelsApi, projectsApi } from '@/lib/api/resources';
 import type { ApiModelVersion, ModelStatus, ProjectView } from '@/lib/api/resources';
-import { formatDateTime, formatLoss, formatNumber, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatDateTime, formatLoss, formatRate, formatRelativeTime } from '@/lib/format';
 import { Panel } from '@/components/ui/Panel';
 import { Chip } from '@/components/ui/Chip';
-import type { ChipProps } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
+import { STATUS_META, formatError, formatR2, isRegression } from '@/features/model-registry/model';
 
 /* M08 · Registro de modelos. Cada entrenamiento COMPLETED deja una versión inmutable
    (pesos .keras, preprocesador .pkl y metadatos) con checksum. Aquí se revisa, aprueba o
    retira; la API aplica el rol del proyecto y la separación de funciones. */
-
-const STATUS_META: Record<ModelStatus, { label: string; tone: NonNullable<ChipProps['tone']>; hint: string }> = {
-  DRAFT: { label: 'Borrador', tone: 'neutral', hint: 'Registrado por el worker; pendiente de revisión.' },
-  REVIEWED: { label: 'Revisado', tone: 'preparing', hint: 'Métricas revisadas; pendiente de aprobación.' },
-  APPROVED: { label: 'Aprobado', tone: 'completed', hint: 'Autorizado para su uso.' },
-  RETIRED: { label: 'Retirado', tone: 'cancelled', hint: 'Fuera de uso; se conserva para trazabilidad.' },
-};
 
 const NEXT_ACTIONS: Record<ModelStatus, Array<{ to: ModelStatus; label: string; permission: string }>> = {
   DRAFT: [
@@ -35,21 +28,6 @@ const NEXT_ACTIONS: Record<ModelStatus, Array<{ to: ModelStatus; label: string; 
 };
 
 type ModelRow = ApiModelVersion & { project: ProjectView };
-
-/* Métricas de prueba según la tarea. Clasificación: accuracy y F1 macro. Regresión: R²
-   (parte de la variación del objetivo que explica el modelo) y RMSE/MAE, que están en las
-   unidades del objetivo y se leen mejor que la pérdida MSE (unidades al cuadrado). */
-function isRegression(metrics: Record<string, number>): boolean {
-  return metrics.r2 !== undefined || metrics.rmse !== undefined;
-}
-
-function formatError(value: number): string {
-  return Math.abs(value) >= 100 ? formatNumber(value, 0) : formatNumber(value, 3);
-}
-
-function formatR2(value: number): string {
-  return formatNumber(value, 3);
-}
 
 function TestMetric({ label, value }: { label: string; value: string | null }) {
   return (

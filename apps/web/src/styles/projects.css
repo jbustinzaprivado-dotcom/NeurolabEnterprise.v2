@@ -1069,3 +1069,110 @@
     width: 100%;
   }
 }
+
+/* Pestañas de trabajo de la ficha (Arquitectura, Dataset, Entrenamientos, Modelos, Historial). */
+.pj-work {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.pj-work-table .table__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.pj-work-table td strong {
+  font-weight: 600;
+}
+
+.pj-work-empty {
+  padding: var(--sp-5) var(--sp-3);
+}
+
+.pj-row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.pj-params {
+  white-space: normal;
+}
+
+.pj-run-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.pj-run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.pj-run__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.pj-run__progress {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.pj-run__progress > span {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transition: width var(--dur-fast) var(--ease);
+}
+
+.pj-work-notice {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.pj-work-notice--success {
+  border-color: var(--success);
+}
+
+.pj-work-notice--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Dentro de la ficha no hay ancho para dos columnas: en móvil cada dato ocupa una línea. */
+@media (max-width: 940px) {
+  .pj-work-table tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--sp-3) 0;
+  }
+
+  .pj-work-table td,
+  .pj-work-table td.is-right {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .pj-work-table .pj-row-actions {
+    justify-content: flex-start;
+  }
+}
