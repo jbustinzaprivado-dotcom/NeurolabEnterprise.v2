@@ -2,6 +2,8 @@
 
 API FastAPI + worker de entrenamiento TensorFlow/Keras, según el Documento Maestro (§8 entidades, §9 endpoints, §10 reglas, §18 MVP).
 
+Documentación del §17 (arquitectura, modelo de datos, contratos, manual de usuario y guía operativa): [`docs/`](../../docs) · índice en el [README principal](../../README.md).
+
 ## Cumplimiento del Documento Maestro
 
 El documento es la regla principal. Estado frente a lo que exige:
@@ -9,6 +11,7 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Documento Maestro | Implementación | Estado |
 |---|---|---|
 | PostgreSQL (§5, §14) | PostgreSQL local; conexión en `.env` | Cumple |
+| Documentación (§17) | Arquitectura y modelo de datos (`docs/architecture`), contratos (`docs/api`), manual de usuario por módulo (`docs/manual-de-usuario.md`) y guía operativa con checklist de producción (`docs/operations`) | Cumple |
 | Migraciones (§14, §17) | Alembic en `infra/migrations`; la API las aplica al arrancar | Cumple |
 | Pruebas de integración con PostgreSQL (§15) | Base `neurolab_test`; sin ella, respaldo SQLite con aviso | Cumple con `.env` |
 | Tiempo real WebSocket o SSE (§5) | SSE que reenvía eventos persistidos; `Last-Event-ID` para reanudar | Cumple |
@@ -117,7 +120,7 @@ Usan la base `neurolab_test` de `.env` (se borra y se vuelve a migrar en cada ej
   ..\..\venv\Scripts\python.exe scripts\exportar_contratos.py
   ```
 
-**Recuperación del worker:** mientras entrena, el worker renueva el latido de su trabajo cada `NEUROLAB_WORKER_STALE_SECONDS / 4` segundos (30 s por defecto) en un hilo propio, sin depender de las épocas. Si el proceso muere, otro worker marca el trabajo como `FAILED` pasados 120 s y se puede reintentar; las épocas ya entrenadas siguen consultables. Si un worker al que se creía caído vuelve, abandona el trabajo sin escribir métricas ni registrar modelos.
+**Recuperación del worker:** mientras entrena, el worker renueva el latido de su trabajo cada 5 s en un hilo propio, sin depender de las épocas. Si el proceso muere, otro worker marca el trabajo como `FAILED` pasados 120 s y se puede reintentar; las épocas ya entrenadas siguen consultables. Si un worker al que se creía caído vuelve, abandona el trabajo sin escribir métricas ni registrar modelos.
 
 ## Endpoints (`/api/v1`)
 

@@ -53,7 +53,9 @@ class Heartbeat:
     def __init__(self, job_id: str, worker_id: str, interval: float | None = None) -> None:
         self.job_id = job_id
         self.worker_id = worker_id
-        self.interval = interval if interval is not None else max(1.0, settings.worker_stale_seconds / 4)
+        # Cada 5 s: muy por debajo del plazo de recuperación (120 s) y de la ventana de 15 s
+        # con la que el panel y /metrics consideran "en línea" a un worker.
+        self.interval = interval if interval is not None else min(5.0, max(1.0, settings.worker_stale_seconds / 4))
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name=f"latido-{job_id}", daemon=True)
 
