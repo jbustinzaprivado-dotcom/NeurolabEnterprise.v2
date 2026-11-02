@@ -4,7 +4,7 @@ import { useSession } from '@/app/session';
 import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { modelsApi, projectsApi } from '@/lib/api/resources';
 import type { ApiModelVersion, ModelStatus, ProjectView } from '@/lib/api/resources';
-import { formatDateTime, formatLoss, formatRate, formatRelativeTime } from '@/lib/format';
+import { formatDateTime, formatLoss, formatNumber, formatRate, formatRelativeTime } from '@/lib/format';
 import { Panel } from '@/components/ui/Panel';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
@@ -304,7 +304,7 @@ export function ModelRegistryPage() {
                     <dt>Parámetros</dt>
                     <dd>
                       {selected.metadata.epochsRun} épocas · lote {selected.metadata.params?.batchSize} ·{' '}
-                      {selected.metadata.params?.optimizer} · lr {selected.metadata.params?.learningRate} · semilla{' '}
+                      {selected.metadata.params?.optimizer} · lr {selected.metadata.params ? formatNumber(selected.metadata.params.learningRate, 4) : '—'} · semilla{' '}
                       {selected.metadata.params?.seed}
                     </dd>
                   </div>

@@ -1045,3 +1045,8 @@ select.tr-input {
   display: block;
   margin-top: 2px;
 }
+
+/* Nombre en columna (registro de modelos): alineado a la izquierda, no centrado. */
+.table__name.tr-queue__pick {
+  align-items: flex-start;
+}
