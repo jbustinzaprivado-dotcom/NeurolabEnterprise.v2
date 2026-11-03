@@ -876,7 +876,7 @@ function warningSection(
         { label: sources.storage.label, value: sources.storage.detail },
         {
           label: 'Retención de bitácora',
-          value: 'Los registros de exportación se conservan 30 días en la demo local.',
+          value: 'Cada exportación queda en la auditoría y se conserva según la retención de M10 (365 días por defecto).',
         },
         {
           label: 'Estado del proyecto',
@@ -1293,11 +1293,11 @@ function datasetAccessLabel(access: DatasetRecord['access']): string {
 
 function layerSettings(layer: ArchitectureConfig['layers'][number]): string {
   const parts: string[] = [];
-  if (layer.units !== undefined) parts.push(`${layer.units} ud.`);
-  if (layer.filters !== undefined) parts.push(`${layer.filters} filtros`);
-  if (layer.kernelSize !== undefined) parts.push(`kernel ${layer.kernelSize}`);
-  if (layer.poolSize !== undefined) parts.push(`pool ${layer.poolSize}`);
-  if (layer.dropout !== undefined) parts.push(`dropout ${formatNumber(layer.dropout * 100, 0)}\u00a0%`);
+  if (layer.units != null) parts.push(`${layer.units} ud.`);
+  if (layer.filters != null) parts.push(`${layer.filters} filtros`);
+  if (layer.kernelSize != null) parts.push(`kernel ${layer.kernelSize}`);
+  if (layer.poolSize != null) parts.push(`pool ${layer.poolSize}`);
+  if (layer.dropout != null) parts.push(`dropout ${formatNumber(layer.dropout * 100, 0)}\u00a0%`);
   if (layer.activation) parts.push(layer.activation);
   return parts.join(' · ') || 'sin parámetros';
 }

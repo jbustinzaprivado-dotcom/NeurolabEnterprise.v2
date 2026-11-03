@@ -128,7 +128,7 @@ export function ExportLedger({
       className="rp-noprint"
       footer={
         <>
-          <span>Se conservan los últimos 40 asientos de esta consola.</span>
+          <span>Se muestran las últimas 40 exportaciones; el historial completo está en la auditoría de M10.</span>
           <a href="/admin">Auditoría completa en M10</a>
         </>
       }

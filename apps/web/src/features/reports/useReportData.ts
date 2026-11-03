@@ -125,7 +125,12 @@ export function useReportData(): ReportModel {
   /* Al llegar el catálogo, se abre el primer proyecto que el usuario puede consultar. */
   useEffect(() => {
     if (projectId || projects.length === 0) return;
-    setProjectId(projects.find((item) => resolveAccess(actor, item).canView)?.id ?? projects[0].id);
+    // Por defecto, un proyecto activo visible; los archivados siguen disponibles en el selector.
+    setProjectId(
+      projects.find((item) => item.status === 'ACTIVE' && resolveAccess(actor, item).canView)?.id ??
+        projects.find((item) => resolveAccess(actor, item).canView)?.id ??
+        projects[0].id,
+    );
   }, [actor, projectId, projects]);
 
   /* Arquitectura del informe: la última versión guardada del proyecto en M04. */
