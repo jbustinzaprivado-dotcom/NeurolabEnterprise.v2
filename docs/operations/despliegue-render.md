@@ -28,14 +28,14 @@ El **almacén de objetos** va fuera de Render, porque Render no ofrece S3. Esta 
 ## 2. Crear el Blueprint en Render
 
 1. En Render, ve a **New → Blueprint** y conecta el repositorio `NeurolabEnterprise.v2`, en la rama `main`. Render detecta `render.yaml`.
-2. Render pide las variables marcadas con `sync: false`. Las direcciones públicas siguen la forma `https://<nombre-del-servicio>.onrender.com`. Si un nombre ya está ocupado, Render le añade un sufijo; en ese caso, corrige la variable en el paso 3.
+2. Render pide las variables marcadas con `sync: false`. Las de S3 y del emisor se piden dos veces, una para la API y otra para el worker: pon el mismo valor en ambas. Las direcciones públicas siguen la forma `https://<nombre-del-servicio>.onrender.com`. Si un nombre ya está ocupado, Render le añade un sufijo; en ese caso, corrige la variable en el paso 3.
 
 | Servicio | Variable | Valor |
 |---|---|---|
-| grupo `neurolab-backend` | `NEUROLAB_S3_ENDPOINT` | El endpoint de R2 |
-| grupo `neurolab-backend` | `NEUROLAB_S3_ACCESS_KEY` | La Access Key ID de R2 |
-| grupo `neurolab-backend` | `NEUROLAB_S3_SECRET_KEY` | La Secret Access Key de R2 |
-| grupo `neurolab-backend` | `NEUROLAB_OIDC_ISSUER` | `https://neurolab-keycloak.onrender.com/realms/neurolab` |
+| `neurolab-api` y `neurolab-worker` | `NEUROLAB_S3_ENDPOINT` | El endpoint de R2 |
+| `neurolab-api` y `neurolab-worker` | `NEUROLAB_S3_ACCESS_KEY` | La Access Key ID de R2 |
+| `neurolab-api` y `neurolab-worker` | `NEUROLAB_S3_SECRET_KEY` | La Secret Access Key de R2 |
+| `neurolab-api` y `neurolab-worker` | `NEUROLAB_OIDC_ISSUER` | `https://neurolab-keycloak.onrender.com/realms/neurolab` |
 | `neurolab-api` | `NEUROLAB_CORS_ORIGINS` | `https://neurolab-web.onrender.com` |
 | `neurolab-keycloak` | `KC_HOSTNAME` | `https://neurolab-keycloak.onrender.com` |
 | `neurolab-keycloak` | `NEUROLAB_WEB_URL` | `https://neurolab-web.onrender.com` |
