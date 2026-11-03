@@ -146,6 +146,8 @@ export const roleDefinitions: RoleDefinition[] = [
       'jobs.prioritize',
       'models.approve',
       'reports.export',
+      // La API le permite la auditoría de sus proyectos (audit.read en permissions.py).
+      'audit.read',
     ],
   },
   {

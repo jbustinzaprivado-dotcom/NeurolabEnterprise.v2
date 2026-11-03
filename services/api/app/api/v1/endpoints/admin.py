@@ -115,13 +115,15 @@ def _health(db: Session) -> list[dict[str, Any]]:
         {"id": "api", "label": "API de plataforma", "status": data["apiStatus"],
          "detail": f"FastAPI {settings.code_version} · {settings.env}", "latencyMs": data["apiLatencyMs"]},
         {"id": "db", "label": "SQLite (modo WAL)" if is_sqlite else "PostgreSQL", "status": data["databaseStatus"],
-         "detail": "Base local de desarrollo" if is_sqlite else "Base de datos de producción", "latencyMs": latency},
+         "detail": "Base local de desarrollo" if is_sqlite else f"PostgreSQL · entorno {settings.env}", "latencyMs": latency},
         {"id": "workers", "label": "Workers de entrenamiento",
          "status": "HEALTHY" if workers else "DOWN" if data["queueDepth"] else "DEGRADED",
          "detail": f"{len(workers)} en línea · {busy} ocupados · cola {data['queueDepth']}", "latencyMs": None},
         {"id": "storage", "label": "Almacenamiento de objetos",
          "status": "HEALTHY" if data["storageUsedGb"] < data["storageLimitGb"] * 0.9 else "DEGRADED",
-         "detail": f"{data['storageUsedGb']:.3f} de {data['storageLimitGb']:g} GB en data/", "latencyMs": None},
+         "detail": (f"{data['storageUsedGb']:.3f} de {data['storageLimitGb']:g} GB · "
+                    + (f"bucket S3 «{settings.s3_bucket}»" if settings.storage_backend == "s3" else "carpeta local data/")),
+         "latencyMs": None},
         {"id": "events", "label": "Canal SSE de eventos", "status": data["apiStatus"],
          "detail": "Eventos persistidos y reanudables con Last-Event-ID", "latencyMs": None},
     ]

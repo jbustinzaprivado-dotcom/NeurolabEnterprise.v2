@@ -70,9 +70,9 @@ export function PermissionMatrix() {
       </div>
 
       <p className="panel__note adm-matrix-note">
-        Denegar por defecto: toda acción no listada se rechaza en el backend y queda como intento de
-        elevación en la auditoría (§11). La matriz se edita desde la tabla de cuentas; aquí solo se
-        consulta la política efectiva.
+        Denegar por defecto: toda acción no listada se rechaza en el backend (403, o 404 si no eres
+        miembro del proyecto). En cada proyecto rige el rol de la persona en ese proyecto; la auditoría
+        global es solo de administración. Los roles se cambian desde la tabla de cuentas.
       </p>
     </div>
   );

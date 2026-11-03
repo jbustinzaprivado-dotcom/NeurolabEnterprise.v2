@@ -53,8 +53,8 @@ export function HealthPanel({ services, checkedAt, onRefresh }: HealthPanelProps
       </ul>
 
       <p className="panel__note adm-health-note">
-        Umbrales de referencia: API &lt; 250 ms, base de datos &lt; 40 ms y workers al menos 4 en
-        línea. Un servicio degradado no bloquea la consola, pero sí puede retrasar la cola.
+        Umbrales de referencia: API &lt; 250 ms, base de datos &lt; 40 ms y al menos un worker en
+        línea (los esperados se fijan con NEUROLAB_WORKERS_EXPECTED). Un servicio degradado no bloquea la consola, pero sí puede retrasar la cola.
       </p>
     </div>
   );
