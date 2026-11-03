@@ -174,8 +174,8 @@ export function UsersPanel({ users, currentUserId, onRoleChange, onToggleStatus 
                         dot={user.mfaEnabled}
                         title={
                           user.mfaEnabled
-                            ? 'Segundo factor activo (TOTP)'
-                            : 'La cuenta no ha registrado un segundo factor'
+                            ? 'Segundo factor declarado en NeuroLab; el MFA real lo exige Keycloak'
+                            : 'Sin segundo factor declarado en NeuroLab; el MFA real lo exige Keycloak'
                         }
                       >
                         {user.mfaEnabled ? 'Activo' : 'Sin MFA'}
@@ -233,7 +233,8 @@ export function UsersPanel({ users, currentUserId, onRoleChange, onToggleStatus 
       <p className="panel__note adm-panel-note">
         El estado de la cuenta y el rol global son independientes de la pertenencia a proyectos (M02).
         Suspender una cuenta revoca sus sesiones activas; el último administrador no puede
-        degradarse ni suspenderse desde esta consola.
+        degradarse ni suspenderse desde esta consola. La columna MFA es el dato registrado en
+        NeuroLab: el segundo factor se configura y se exige en Keycloak (consola /admin del reino).
       </p>
     </Panel>
   );

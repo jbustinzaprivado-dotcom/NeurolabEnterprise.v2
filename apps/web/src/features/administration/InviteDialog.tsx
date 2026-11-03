@@ -67,8 +67,8 @@ export function InviteDialog({ existingEmails, onClose, onSubmit }: InviteDialog
             <p className="adm-modal__eyebrow">M10 · Administración</p>
             <h2 id="adm-invite-title">Invitar usuario</h2>
             <p className="adm-modal__lede">
-              La cuenta se crea en estado <strong>invitada</strong> y solo obtiene acceso cuando
-              acepta el enlace enviado a su correo corporativo.
+              La cuenta se crea en estado <strong>invitada</strong> y se activa en su primer inicio de
+              sesión. Crea también su cuenta en Keycloak con el mismo correo: NeuroLab no envía correos.
             </p>
           </div>
           <button type="button" className="btn btn--ghost btn--icon" onClick={onClose} aria-label="Cerrar">
@@ -150,7 +150,7 @@ export function InviteDialog({ existingEmails, onClose, onSubmit }: InviteDialog
           <footer className="adm-modal__foot">
             <p className="adm-modal__foot-note">
               <Icon name="mail" size={14} />
-              La invitación caduca a los 7 días. El alta y el rol elegido quedan en la auditoría.
+              La invitación sigue vigente hasta que la persona entra o se revoca. El alta y el rol elegido quedan en la auditoría.
             </p>
             <button type="button" className="btn btn--secondary" onClick={onClose}>
               Cancelar
