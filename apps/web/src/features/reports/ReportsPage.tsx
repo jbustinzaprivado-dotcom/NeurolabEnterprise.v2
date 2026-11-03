@@ -8,7 +8,7 @@ import { ReportSheet } from '@/features/reports/ReportDocument';
 import { ExportDialog } from '@/features/reports/ExportDialog';
 import { ExportLedger, PermissionsMatrix } from '@/features/reports/ReportAudit';
 import { useReportData } from '@/features/reports/useReportData';
-import type { ReportFormat } from '@/features/reports/model';
+import type { ReportDocument, ReportFormat } from '@/features/reports/model';
 
 /* M09 · Reportes. §6 del documento maestro pide cuatro cosas —ficha de proyecto, resumen de
    arquitectura, historial de entrenamiento y exportación CSV/PDF según permisos— y todas se
@@ -17,6 +17,9 @@ import type { ReportFormat } from '@/features/reports/model';
 export function ReportsPage() {
   const report = useReportData();
   const [dialog, setDialog] = useState<ReportFormat | null>(null);
+  /* El informe se regenera cada 30 s (hora de emisión): al abrir la confirmación se congela
+     para que la huella y el tamaño mostrados sean los del archivo que se descarga. */
+  const [frozen, setFrozen] = useState<ReportDocument | null>(null);
 
   const document = report.document;
   const totals = document?.totals ?? null;
@@ -219,7 +222,13 @@ export function ReportsPage() {
 
           <div className="dash__col rp__side">
             {report.access ? (
-              <ReportComposer report={report} onExport={setDialog} />
+              <ReportComposer
+                report={report}
+                onExport={(format) => {
+                  setFrozen(report.document);
+                  setDialog(format);
+                }}
+              />
             ) : null}
             {report.sessionAccess ? (
               <PermissionsMatrix
@@ -239,9 +248,9 @@ export function ReportsPage() {
         highlight={report.lastEvent?.id ?? null}
       />
 
-      {dialog && document ? (
+      {dialog && (frozen ?? document) ? (
         <ExportDialog
-          document={document}
+          document={(frozen ?? document) as ReportDocument}
           format={dialog}
           allowed={report.canExport(dialog)}
           denial={
@@ -249,9 +258,14 @@ export function ReportsPage() {
               ? 'Está simulando otro rol: vuelva a la sesión real para exportar.'
               : 'Su rol en este proyecto permite consultar el informe, pero no distribuirlo (§11).'
           }
-          onClose={() => setDialog(null)}
+          onClose={() => {
+            setDialog(null);
+            setFrozen(null);
+          }}
           onConfirm={() => {
-            const outcome = dialog === 'CSV' ? report.exportCsv() : report.exportPdf();
+            const outcome =
+              dialog === 'CSV' ? report.exportCsv(frozen ?? undefined) : report.exportPdf(frozen ?? undefined);
+            setFrozen(null);
             report.notify(outcome);
             setDialog(null);
           }}

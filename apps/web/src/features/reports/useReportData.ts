@@ -87,8 +87,9 @@ export interface ReportModel {
   curvesLoading: boolean;
 
   canExport: (format: ReportFormat) => boolean;
-  exportCsv: () => ReportOutcome;
-  exportPdf: () => ReportOutcome;
+  /** `frozen`: el documento que vio la confirmación; así la huella mostrada es la del archivo. */
+  exportCsv: (frozen?: ReportDocument) => ReportOutcome;
+  exportPdf: (frozen?: ReportDocument) => ReportOutcome;
   events: ExportEvent[];
   lastEvent: ExportEvent | null;
 
@@ -338,7 +339,7 @@ export function useReportData(): ReportModel {
     [actor, show],
   );
 
-  const exportCsv = useCallback((): ReportOutcome => {
+  const exportCsv = useCallback((frozen?: ReportDocument): ReportOutcome => {
     if (!built?.document.sections.length || built.problem) {
       return { ok: false, tone: 'danger', text: 'No hay un informe autorizado con contenido que exportar.' };
     }
@@ -348,7 +349,7 @@ export function useReportData(): ReportModel {
     if (!canExport('CSV')) {
       return { ok: false, tone: 'danger', text: 'Su rol en este proyecto permite consultar el informe, pero no distribuirlo (§11).' };
     }
-    const document = built.document;
+    const document = frozen ?? built.document;
     const csv = toCsv(document);
     const fileName = reportFileName(document, 'CSV', Date.now());
     try {
@@ -372,7 +373,7 @@ export function useReportData(): ReportModel {
     }
   }, [blockedByPreview, built, canExport, commitExport]);
 
-  const exportPdf = useCallback((): ReportOutcome => {
+  const exportPdf = useCallback((frozen?: ReportDocument): ReportOutcome => {
     if (!built?.document.sections.length || built.problem) {
       return { ok: false, tone: 'danger', text: 'No hay un informe autorizado con contenido que exportar.' };
     }
@@ -386,7 +387,7 @@ export function useReportData(): ReportModel {
         text: 'El PDF tiene valor de aprobación: lo exportan la responsabilidad del proyecto, la revisión o la administración.',
       };
     }
-    const document = built.document;
+    const document = frozen ?? built.document;
     const suggested = reportFileName(document, 'PDF', Date.now());
     const previous = window.document.title;
     commitExport(
