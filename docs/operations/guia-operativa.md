@@ -160,7 +160,7 @@ Hay 102 pruebas, que usan la base `neurolab_test` (se recrea en cada ejecución)
 6. marca la versión como revisada y comprueba que quien entrenó no puede aprobarla.
 
 ```
-cd appsweb
+cd apps\web
 npm run e2e
 ```
 
