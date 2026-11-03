@@ -226,7 +226,7 @@ export function ReportComposer({
             type="button"
             className="btn btn--secondary"
             onClick={() => onExport('CSV')}
-            disabled={!document || document.sections.length === 0}
+            disabled={!document || document.sections.length === 0 || !report.canExport('CSV')}
           >
             <Icon name="download" size={16} />
             Descargar CSV
@@ -235,7 +235,7 @@ export function ReportComposer({
             type="button"
             className="btn btn--primary"
             onClick={() => onExport('PDF')}
-            disabled={!document || document.sections.length === 0}
+            disabled={!document || document.sections.length === 0 || !report.canExport('PDF')}
           >
             <Icon name="fileText" size={16} />
             Generar PDF

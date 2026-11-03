@@ -24,6 +24,10 @@ export interface ObservationLogProps {
   onAdd: (draft: ObservationDraft) => void;
   onToggleReviewed: (observationId: string) => void;
   titleRef: RefObject<HTMLInputElement>;
+  /** El rol en el proyecto de la ejecución permite registrar (cualquiera salvo lector). */
+  canAdd: (runId: string) => boolean;
+  /** El rol en el proyecto permite marcar como revisado (responsable o revisor). */
+  canReview: (runId: string) => boolean;
 }
 
 export function ObservationLog({
@@ -35,6 +39,8 @@ export function ObservationLog({
   onAdd,
   onToggleReviewed,
   titleRef,
+  canAdd,
+  canReview,
 }: ObservationLogProps) {
   const [kind, setKind] = useState<ObservationKind>('LIMITATION');
   const [runId, setRunId] = useState(currentRunId);
@@ -158,7 +164,12 @@ export function ObservationLog({
           <p className="ev-form__hint">
             Se guardan autor y fecha. Los registros no se pueden editar ni eliminar: quedan como trazabilidad de la evaluación.
           </p>
-          <button type="submit" className="btn btn--primary btn--sm">
+          <button
+            type="submit"
+            className="btn btn--primary btn--sm"
+            disabled={!canAdd(runId)}
+            title={canAdd(runId) ? undefined : 'Su rol en este proyecto es de solo lectura.'}
+          >
             <Icon name="plus" size={14} />
             Añadir registro
           </button>
@@ -226,13 +237,15 @@ export function ObservationLog({
                       </span>
                       <span>{item.author}</span>
                       <span>{formatRelativeTime(item.createdAt)}</span>
-                      <button
-                        type="button"
-                        className="ev-entry__action"
-                        onClick={() => onToggleReviewed(item.id)}
-                      >
-                        {item.reviewed ? 'Reabrir' : 'Marcar revisado'}
-                      </button>
+                      {canReview(item.runId) ? (
+                        <button
+                          type="button"
+                          className="ev-entry__action"
+                          onClick={() => onToggleReviewed(item.id)}
+                        >
+                          {item.reviewed ? 'Reabrir' : 'Marcar revisado'}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </article>

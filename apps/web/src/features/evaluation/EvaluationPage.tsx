@@ -3,6 +3,7 @@ import type { EvaluationMetric, EvaluationRun, Observation, ObservationDraft, Ob
 import { useQuery } from '@tanstack/react-query';
 import { queryClient, queryKeys } from '@/lib/api/queryClient';
 import { evaluationApi } from '@/lib/api/resources';
+import { useCatalog } from '@/lib/api/useCatalog';
 import { familyMeta } from '@/lib/nav';
 import { formatDateTime, formatDuration, formatLoss, formatNumber, formatRate } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
@@ -77,6 +78,13 @@ export function EvaluationPage() {
     const failed = runsQuery.error ?? observationsQuery.error;
     if (failed) setNotice({ tone: 'danger', text: failed instanceof Error ? failed.message : 'No fue posible leer las evaluaciones.' });
   }, [runsQuery.error, observationsQuery.error]);
+
+  /* Rol en el proyecto de cada ejecución (lo que aplica la API); sin dato, solo lectura. */
+  const catalog = useCatalog();
+  const roleOfRun = (runId: string): string => {
+    const run = runs.find((item) => item.id === runId);
+    return catalog.projects.find((project) => project.id === run?.projectId)?.myRole ?? 'reader';
+  };
 
   const load = useCallback(
     () =>
@@ -616,6 +624,8 @@ export function EvaluationPage() {
             onAdd={(draft) => void handleAddObservation(draft)}
             onToggleReviewed={(id) => void toggleReviewed(id)}
             titleRef={titleRef}
+            canAdd={(id) => roleOfRun(id) !== 'reader'}
+            canReview={(id) => ['admin', 'owner', 'reviewer'].includes(roleOfRun(id))}
           />
         </Panel>
       </div>

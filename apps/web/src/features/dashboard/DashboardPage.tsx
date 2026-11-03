@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { JobStatus, TrainingJob } from '@/types/domain';
 import { usePlatformData } from '@/app/providers';
+import { useSession } from '@/app/session';
+import { canCreateProject } from '@/features/projects/model';
 import { dataSource } from '@/lib/api/dashboard';
 import { formatRelativeTime } from '@/lib/format';
 import { Chip } from '@/components/ui/Chip';
@@ -41,6 +43,7 @@ function matches(job: TrainingJob, term: string): boolean {
 }
 
 export function DashboardPage() {
+  const { actor } = useSession();
   const { snapshot, status, error, lastUpdated, pendingCancellation, refresh, cancelJob } =
     usePlatformData();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -111,10 +114,12 @@ export function DashboardPage() {
             <Icon name="report" size={16} />
             Exportar informe
           </a>
+          {canCreateProject(actor) ? (
           <a className="btn btn--primary" href="/projects">
             <Icon name="plus" size={16} />
             Nuevo proyecto
           </a>
+          ) : null}
         </div>
       </div>
 

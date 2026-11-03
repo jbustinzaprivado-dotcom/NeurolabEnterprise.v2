@@ -119,8 +119,8 @@ export function AdministrationPage() {
           </p>
           {loadError && actor.role !== 'admin' ? (
             <p className="panel__note">
-              Tu rol global es {roleLabels[actor.role].toLowerCase()}. En desarrollo puedes cambiar a la
-              administradora demo desde el menú de perfil.
+              Tu rol global es {roleLabels[actor.role].toLowerCase()}. Para entrar aquí, cierra sesión e
+              inicia con una cuenta de administración (en la demo, sofia.ramirez).
             </p>
           ) : null}
         </div>
