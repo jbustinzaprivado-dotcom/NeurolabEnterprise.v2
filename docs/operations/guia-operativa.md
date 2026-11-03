@@ -63,6 +63,8 @@ Los límites de uso (épocas, carga, duración, concurrencia, tasa y cuota) tien
 
 ## 5. Despliegue con Docker
 
+Para publicarla en la nube con HTTPS, ver [Despliegue en Render](despliegue-render.md), que usa los mismos Dockerfile.
+
 ```
 copy infra\docker\.env.example infra\docker\.env      # y cambia todas las claves
 docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
@@ -180,7 +182,7 @@ La CI de GitHub Actions corre en cada push las pruebas contra PostgreSQL y Seawe
 | 6 | Prueba end-to-end desde el navegador | ✅ `apps/web/e2e` (Playwright), en CI |
 | 7 | Respaldo probado con restauración real (`probar_respaldo.ps1`) sobre la base de trabajo | ⏳ Pendiente de ejecutar |
 | 8 | Respaldo de la base de Keycloak incluido en el script | ⏳ Pendiente: hoy es un comando manual |
-| 9 | HTTPS en la web, la API y Keycloak (cifrado en tránsito, §11) | ⏳ Pendiente |
+| 9 | HTTPS en la web, la API y Keycloak (cifrado en tránsito, §11) | ⏳ Lo da Render al desplegar ([render.yaml](../../render.yaml)); pendiente de publicar |
 | 10 | Despliegue con Docker probado de punta a punta | ⏳ Pendiente: Docker no está instalado |
 | 11 | Alertas configuradas en Prometheus (sección 6) | ⏳ Pendiente: las métricas existen |
 | 12 | Claves de producción nuevas, sin valores de ejemplo, y datos demo desactivados | ⏳ Al desplegar |

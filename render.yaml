@@ -1,0 +1,160 @@
+# Despliegue en Render (Blueprint). Guía paso a paso: docs/operations/despliegue-render.md
+#
+# Servicios: interfaz estática, API, worker de entrenamiento, Keycloak y PostgreSQL.
+# El almacén de objetos es externo y compatible con S3 (Cloudflare R2, AWS S3 o Backblaze B2):
+# Render no ofrece uno.
+#
+# Las variables marcadas con `sync: false` las pide Render al crear el Blueprint; sus valores
+# no viven en este archivo. Los planes son el mínimo razonable para cada servicio: revisa los
+# precios vigentes en render.com antes de crear el Blueprint.
+
+envVarGroups:
+  - name: neurolab-backend
+    envVars:
+      - key: NEUROLAB_ENV
+        value: production
+      # Datos demo (§17): usuarios, proyectos y datasets sintéticos. Para un entorno sin datos
+      # de ejemplo, cambiar a "false" antes del primer arranque.
+      - key: NEUROLAB_SEED_DEMO
+        value: "true"
+      - key: NEUROLAB_SEED_HISTORY
+        value: "false"
+      - key: NEUROLAB_AUTH_PROVIDER
+        value: oidc
+      - key: NEUROLAB_AUTH_DEV_BYPASS
+        value: "false"
+      - key: NEUROLAB_SECRET_KEY
+        generateValue: true
+      - key: NEUROLAB_LOG_FORMAT
+        value: json
+      # Almacén de objetos S3 externo (§5).
+      - key: NEUROLAB_STORAGE_BACKEND
+        value: s3
+      - key: NEUROLAB_S3_REGION
+        value: auto
+      - key: NEUROLAB_S3_BUCKET
+        value: neurolab
+      - key: NEUROLAB_S3_ENDPOINT
+        sync: false
+      - key: NEUROLAB_S3_ACCESS_KEY
+        sync: false
+      - key: NEUROLAB_S3_SECRET_KEY
+        sync: false
+      # Emisor del reino en Keycloak: https://<keycloak>.onrender.com/realms/neurolab
+      - key: NEUROLAB_OIDC_ISSUER
+        sync: false
+
+databases:
+  - name: neurolab-db
+    databaseName: neurolab
+    user: neurolab
+    plan: basic-256mb
+    # NeuroLab usa el esquema public; Keycloak, su propio esquema «keycloak» en la misma base.
+
+services:
+  - name: neurolab-api
+    type: web
+    runtime: docker
+    dockerfilePath: ./infra/docker/python.Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - fromGroup: neurolab-backend
+      - key: NEUROLAB_DATABASE_URL
+        fromDatabase:
+          name: neurolab-db
+          property: connectionString
+      - key: NEUROLAB_PORT
+        value: "10000"
+      # Keycloak guarda sus tablas en este esquema de la misma base; la API lo crea al arrancar.
+      - key: NEUROLAB_EXTRA_SCHEMAS
+        value: keycloak
+      # Dirección pública de la interfaz: https://<web>.onrender.com
+      - key: NEUROLAB_CORS_ORIGINS
+        sync: false
+
+  # TensorFlow necesita memoria: el plan starter (512 MB) se queda corto.
+  - name: neurolab-worker
+    type: worker
+    runtime: docker
+    dockerfilePath: ./infra/docker/python.Dockerfile
+    dockerContext: .
+    dockerCommand: python workers/training/main.py
+    plan: standard
+    autoDeploy: true
+    envVars:
+      - fromGroup: neurolab-backend
+      - key: NEUROLAB_DATABASE_URL
+        fromDatabase:
+          name: neurolab-db
+          property: connectionString
+
+  - name: neurolab-keycloak
+    type: web
+    runtime: docker
+    dockerfilePath: ./infra/render/keycloak.Dockerfile
+    dockerContext: .
+    # Keycloak es Java: con menos de 1 GB de memoria arranca con dificultad.
+    plan: standard
+    healthCheckPath: /realms/neurolab
+    autoDeploy: true
+    envVars:
+      - key: KC_DB_URL_HOST
+        fromDatabase:
+          name: neurolab-db
+          property: host
+      - key: KC_DB_URL_PORT
+        fromDatabase:
+          name: neurolab-db
+          property: port
+      - key: KC_DB_URL_DATABASE
+        fromDatabase:
+          name: neurolab-db
+          property: database
+      - key: KC_DB_USERNAME
+        fromDatabase:
+          name: neurolab-db
+          property: user
+      - key: KC_DB_PASSWORD
+        fromDatabase:
+          name: neurolab-db
+          property: password
+      - key: KC_BOOTSTRAP_ADMIN_USERNAME
+        value: admin
+      - key: KC_BOOTSTRAP_ADMIN_PASSWORD
+        generateValue: true
+      # Dirección pública de Keycloak: https://<keycloak>.onrender.com
+      - key: KC_HOSTNAME
+        sync: false
+      # Dirección pública de la interfaz: se añade a las direcciones de retorno del reino.
+      - key: NEUROLAB_WEB_URL
+        sync: false
+
+  - name: neurolab-web
+    type: web
+    runtime: static
+    rootDir: apps/web
+    buildCommand: npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      # Dirección pública de la API con su prefijo: https://<api>.onrender.com/api/v1
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      # Aplicación de una sola página: /auth/callback, /projects, etc. sirven index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin

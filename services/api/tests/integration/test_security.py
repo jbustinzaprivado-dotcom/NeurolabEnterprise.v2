@@ -117,3 +117,36 @@ def test_production_refuses_development_settings(monkeypatch):
     monkeypatch.setenv("NEUROLAB_AUTH_PROVIDER", "oidc")
     monkeypatch.setenv("NEUROLAB_OIDC_ISSUER", "https://id.example.org/realms/neurolab")
     Settings().check_runtime()
+
+
+def test_render_like_production_settings_pass(monkeypatch):
+    """La configuración de render.yaml arranca en producción (§11)."""
+    for key, value in {
+        "NEUROLAB_ENV": "production", "NEUROLAB_SEED_DEMO": "true", "NEUROLAB_SEED_HISTORY": "false",
+        "NEUROLAB_AUTH_PROVIDER": "oidc", "NEUROLAB_AUTH_DEV_BYPASS": "false",
+        "NEUROLAB_OIDC_ISSUER": "https://neurolab-keycloak.onrender.com/realms/neurolab",
+        "NEUROLAB_SECRET_KEY": "generada-por-render", "NEUROLAB_STORAGE_BACKEND": "s3",
+        "NEUROLAB_EXTRA_SCHEMAS": "keycloak",
+    }.items():
+        monkeypatch.setenv(key, value)
+    configured = Settings()
+    configured.check_runtime()
+    assert configured.extra_schemas == ["keycloak"]
+
+
+def test_extra_schemas_are_created(monkeypatch):
+    from dataclasses import replace
+
+    from sqlalchemy import text
+
+    from app.core import database
+
+    if database.engine.dialect.name != "postgresql":
+        pytest.skip("Los esquemas solo existen en PostgreSQL.")
+    monkeypatch.setattr(database, "settings", replace(database.settings, extra_schemas=["keycloak_prueba"]))
+    database._ensure_extra_schemas()
+    database._ensure_extra_schemas()  # idempotente
+    with database.engine.begin() as connection:
+        found = connection.execute(text("SELECT 1 FROM information_schema.schemata WHERE schema_name = 'keycloak_prueba'")).scalar()
+        connection.exec_driver_sql('DROP SCHEMA "keycloak_prueba"')
+    assert found == 1

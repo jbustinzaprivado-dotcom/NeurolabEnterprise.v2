@@ -99,6 +99,8 @@ class Settings:
     oidc_client_id: str = field(default_factory=lambda: _env("OIDC_CLIENT_ID", "neurolab-web"))
     # Dirección desde la que la API alcanza al proveedor si difiere de la pública (p. ej. en Docker).
     oidc_internal_url: str = field(default_factory=lambda: _env("OIDC_INTERNAL_URL", "").rstrip("/"))
+    # Esquemas adicionales que la API crea al arrancar para servicios que comparten la base.
+    extra_schemas: list[str] = field(default_factory=lambda: _env_list("EXTRA_SCHEMAS", ""))
     # Límites de tasa y bloqueo de cuentas (§11).
     rate_limit_per_minute: int = field(default_factory=lambda: int(_env("RATE_LIMIT_PER_MINUTE", "600")))
     login_attempts_per_minute: int = field(default_factory=lambda: int(_env("LOGIN_ATTEMPTS_PER_MINUTE", "10")))

@@ -82,3 +82,16 @@ def migrate() -> None:
     from alembic.config import Config
 
     command.upgrade(Config(str(API_DIR / "alembic.ini")), "head")
+    _ensure_extra_schemas()
+
+
+def _ensure_extra_schemas() -> None:
+    """Esquemas que otros servicios comparten en la misma base PostgreSQL (p. ej. «keycloak» en
+    Render, donde Keycloak y NeuroLab usan una sola base). NeuroLab no crea tablas en ellos."""
+    if engine.dialect.name != "postgresql":
+        return
+    for schema in settings.extra_schemas:
+        if not schema.isidentifier():
+            raise RuntimeError(f"Nombre de esquema no válido en NEUROLAB_EXTRA_SCHEMAS: {schema!r}")
+        with engine.begin() as connection:
+            connection.exec_driver_sql(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')

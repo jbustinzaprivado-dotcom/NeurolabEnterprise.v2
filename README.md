@@ -21,6 +21,7 @@ Abre http://localhost:5173 y entra con un usuario demo, por ejemplo `ana.quispe`
 | [Arquitectura](docs/architecture/arquitectura.md) | Equipo técnico: objetivo, roles, flujos, componentes, seguridad y decisiones |
 | [Modelo de datos](docs/architecture/modelo-de-datos.md) | Entidades, relaciones, almacén de objetos y retención |
 | [Contratos de la API](docs/api/README.md) | REST (`openapi.json`) y eventos en vivo (`eventos-sse.json`) |
+| [Despliegue en Render](docs/operations/despliegue-render.md) | Publicar la plataforma con `render.yaml`, Cloudflare R2 y Keycloak |
 | [Guía operativa](docs/operations/guia-operativa.md) | Despliegue, configuración, monitoreo, respaldo, recuperación y checklist de producción |
 | [API: detalle técnico](services/api/README.md) | Cumplimiento por sección del Documento Maestro, datos demo y pruebas |
 
