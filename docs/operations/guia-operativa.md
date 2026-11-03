@@ -61,6 +61,28 @@ Los límites de uso (épocas, carga, duración, concurrencia, tasa y cuota) tien
 - **Seguridad:** Keycloak aplica la política de contraseñas (10 caracteres como mínimo, con al menos un dígito) y bloquea la cuenta tras 5 intentos fallidos. Los tokens de acceso duran 5 minutos y la interfaz los renueva sola.
 - **Si Keycloak no responde,** la interfaz muestra *"El proveedor de identidad no responde"* y la API devuelve 503 en `/auth/config`. Los entrenamientos en curso no se ven afectados.
 
+## 4 bis. Demostración pública temporal (sin costo)
+
+Para mostrar el sistema desde otro dispositivo durante una sesión, sin desplegarlo en la nube:
+
+1. Instala cloudflared una sola vez y abre una terminal nueva:
+   ```
+   winget install --id Cloudflare.cloudflared
+   ```
+2. Cierra las ventanas de `run.bat` (Keycloak, API, worker y web).
+3. Ejecuta:
+   ```
+   powershell -ExecutionPolicy Bypass -File infra\demo\exponer.ps1
+   ```
+   El script abre dos túneles gratuitos de Cloudflare (`*.trycloudflare.com`, sin cuenta) y arranca Keycloak, la API, el worker y la web con esas direcciones. Al terminar muestra la dirección **HTTPS** para abrir desde el teléfono u otro equipo.
+4. Para terminar, cierra las ventanas y ejecuta el script con `-Detener`. Después, `run.bat` vuelve al modo local.
+
+**Límites:**
+- Las direcciones cambian en cada ejecución.
+- Funciona mientras tu PC esté encendida.
+- Los túneles rápidos de Cloudflare no tienen garantía de disponibilidad, así que no sirven para producción.
+- Cualquiera con la dirección puede ver la pantalla de acceso: no la publiques y recuerda que las contraseñas demo son públicas.
+
 ## 5. Despliegue con Docker
 
 Para publicarla en la nube con HTTPS, ver [Despliegue en Render](despliegue-render.md), que usa los mismos Dockerfile.

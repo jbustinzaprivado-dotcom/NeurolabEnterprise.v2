@@ -11,6 +11,8 @@
 param(
     [string]$Keycloak = "",
     [int]$Puerto = 8180,
+    # Dirección pública de Keycloak (p. ej. un túnel https://…trycloudflare.com); por defecto, localhost.
+    [string]$Publico = "",
     [switch]$BaseLocal
 )
 
@@ -46,7 +48,8 @@ if (-not $adminPassword) { throw "Falta KEYCLOAK_ADMIN_PASSWORD en .env: ejecuta
 $env:KC_BOOTSTRAP_ADMIN_USERNAME = "admin"
 $env:KC_BOOTSTRAP_ADMIN_PASSWORD = $adminPassword
 
-$arguments = @("start-dev", "--http-port=$Puerto", "--import-realm", "--hostname=http://localhost:$Puerto")
+$hostname = if ($Publico) { $Publico.TrimEnd("/") } else { "http://localhost:$Puerto" }
+$arguments = @("start-dev", "--http-port=$Puerto", "--import-realm", "--hostname=$hostname")
 if (-not $BaseLocal) {
     $dbPassword = Read-Env "KEYCLOAK_DB_PASSWORD"
     if (-not $dbPassword) { throw "Falta KEYCLOAK_DB_PASSWORD en .env: ejecuta antes infra\postgres\crear_base.ps1." }
@@ -56,7 +59,7 @@ if (-not $BaseLocal) {
     $env:KC_DB_PASSWORD = $dbPassword
 }
 
-Write-Host "Keycloak en http://localhost:$Puerto (reino 'neurolab'). Ctrl+C para detenerlo."
+Write-Host "Keycloak en $hostname (reino 'neurolab'). Ctrl+C para detenerlo."
 try {
     & "$Keycloak\bin\kc.bat" @arguments
 } finally {
