@@ -23,3 +23,7 @@ apps/web/dist/
 
 # Metadatos de Resilio Sync
 .sync/
+
+# Resultados de la prueba E2E (Playwright)
+apps/web/test-results/
+apps/web/playwright-report/

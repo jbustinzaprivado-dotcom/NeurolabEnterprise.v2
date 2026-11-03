@@ -27,6 +27,7 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Copias de seguridad probadas (§11) | `respaldo.ps1`, `restaurar.ps1` y `probar_respaldo.ps1` en `infra/postgres` | Cumple; ejecutar tras crear la base |
 | Pruebas de contrato (§15) | `tests/contract`: la API publicada en `docs/api/openapi.json` y el esquema de cada evento SSE (`docs/api/eventos-sse.json`) se comparan con el código; los eventos de entrenamientos reales se validan contra su esquema | Cumple |
 | Pruebas de recuperación (§15) | `tests/integration/test_recovery.py`: reinicio de la API sin pérdida ni duplicados, worker caído a mitad de entrenamiento (se recupera y se reintenta), worker creído caído que vuelve sin sobrescribir, latido durante épocas largas y reclamo exclusivo. La desconexión del navegador se prueba con `Last-Event-ID` | Cumple |
+| Prueba end-to-end en navegador (§15) | `apps/web/e2e/flujo-mvp.spec.ts` (Playwright): proyecto → dataset → arquitectura → entrenamiento con épocas en vivo → evaluación → revisión de la versión, sobre un backend aislado | Cumple; corre en CI |
 | CI (§14, §15) | GitHub Actions: pruebas contra PostgreSQL, `alembic check` y build del frontend | Cumple |
 | Docker (§5) | `infra/docker`: imágenes de API/worker y web, compose con PostgreSQL, SeaweedFS, Keycloak y Prometheus | Escrito; sin probar localmente (Docker no instalado) |
 

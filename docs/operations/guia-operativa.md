@@ -145,13 +145,28 @@ cd services\api
 ..\..\venv\Scripts\python.exe -m pytest
 ```
 
-Hay 101 pruebas, que usan la base `neurolab_test` (se recrea en cada ejecución):
+Hay 102 pruebas, que usan la base `neurolab_test` (se recrea en cada ejecución):
 
 - `tests/unit`: validaciones, permisos y métricas;
 - `tests/integration`: API con PostgreSQL, almacenamiento, cola, seguridad y recuperación;
 - `tests/contract`: contratos REST y SSE de `docs/api`.
 
-La CI de GitHub Actions las corre en cada push contra PostgreSQL y SeaweedFS, junto con `alembic check` y el build del frontend.
+**Prueba end-to-end en navegador** (§15): recorre como una persona el flujo completo:
+1. inicia sesión;
+2. crea un proyecto y registra un dataset CSV;
+3. diseña la red y la guarda;
+4. encola el entrenamiento y espera las épocas en vivo por SSE;
+5. consulta la evaluación;
+6. marca la versión como revisada y comprueba que quien entrenó no puede aprobarla.
+
+```
+cd appsweb
+npm run e2e
+```
+
+Levanta su propia API y su propio worker sobre una base SQLite temporal, con login local en lugar de Keycloak, y la web en el puerto 5180. No toca tu base ni tus datos. En Windows usa el Microsoft Edge del sistema. Tarda menos de un minuto.
+
+La CI de GitHub Actions corre en cada push las pruebas contra PostgreSQL y SeaweedFS, junto con `alembic check`, el build del frontend y la prueba end-to-end en Chromium.
 
 ## 11. Checklist de producción (fase 6)
 
@@ -162,7 +177,7 @@ La CI de GitHub Actions las corre en cada push contra PostgreSQL y SeaweedFS, ju
 | 3 | Límites de tasa, de carga, de duración y de concurrencia, y cuotas | ✅ |
 | 4 | Auditoría de acciones relevantes y logs sin secretos | ✅ |
 | 5 | Pruebas unitarias, de integración, de contrato y de recuperación en CI | ✅ |
-| 6 | Prueba end-to-end desde el navegador | ⏳ Pendiente: el flujo está probado a nivel de API |
+| 6 | Prueba end-to-end desde el navegador | ✅ `apps/web/e2e` (Playwright), en CI |
 | 7 | Respaldo probado con restauración real (`probar_respaldo.ps1`) sobre la base de trabajo | ⏳ Pendiente de ejecutar |
 | 8 | Respaldo de la base de Keycloak incluido en el script | ⏳ Pendiente: hoy es un comando manual |
 | 9 | HTTPS en la web, la API y Keycloak (cifrado en tránsito, §11) | ⏳ Pendiente |

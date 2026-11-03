@@ -162,7 +162,7 @@ stateDiagram-v2
 | Seguridad | Nadie lee ni cancela trabajos de proyectos ajenos | 404 a no miembros (`test_foreign_user_cannot_read_or_cancel_job`) |
 | Confiabilidad | Errores con mensaje controlado y traza técnica protegida | `status_reason` para el usuario y `error_detail` solo para administración |
 | Mantenibilidad | Límites claros entre frontend, API, workers y persistencia | Estructura del §13; el worker no importa código de la interfaz |
-| Pruebas | Unitarias, de integración y E2E | 101 pruebas en CI con PostgreSQL y S3 (ver [../operations/guia-operativa.md](../operations/guia-operativa.md#10-pruebas)) |
+| Pruebas | Unitarias, de integración y E2E | 102 pruebas de API en CI con PostgreSQL y S3, más el flujo E2E en navegador (Playwright) (ver [../operations/guia-operativa.md](../operations/guia-operativa.md#10-pruebas)) |
 
 ## 8. Decisiones donde el documento no especifica
 
