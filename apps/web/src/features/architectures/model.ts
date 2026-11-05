@@ -328,8 +328,9 @@ function applyLayer(layer: LayerConfig, shape: number[]): { shape: number[]; par
       const filters = Math.max(0, Math.round(layer.filters ?? 0));
       const kernel = Math.max(1, Math.round(layer.kernelSize ?? 3));
       const inChannels = Math.max(0, shape[2]);
+      // Relleno `valid`, como Keras y la API: el borde se pierde (64 − 3 + 1 = 62).
       return {
-        shape: [shape[0], shape[1], filters],
+        shape: [Math.max(0, shape[0] - kernel + 1), Math.max(0, shape[1] - kernel + 1), filters],
         params: kernel * kernel * inChannels * filters + filters,
       };
     }
@@ -337,7 +338,7 @@ function applyLayer(layer: LayerConfig, shape: number[]): { shape: number[]; par
       if (shape.length !== 3) return { shape, params: 0 };
       const pool = Math.max(1, Math.round(layer.poolSize ?? 2));
       return {
-        shape: [Math.ceil(shape[0] / pool), Math.ceil(shape[1] / pool), shape[2]],
+        shape: [Math.floor(shape[0] / pool), Math.floor(shape[1] / pool), shape[2]],
         params: 0,
       };
     }
@@ -349,11 +350,16 @@ function applyLayer(layer: LayerConfig, shape: number[]): { shape: number[]; par
     case 'GRU': {
       const units = Math.max(0, Math.round(layer.units ?? 0));
       const features = Math.max(0, shape[shape.length - 1] ?? 0);
-      const gates = layer.type === 'LSTM' ? 4 : 3;
-      return { shape: [units], params: gates * ((features + units) * units + units) };
+      // LSTM: 4 compuertas con un sesgo; GRU (reset_after, el modo de Keras): 3 con dos sesgos.
+      const params =
+        layer.type === 'LSTM'
+          ? 4 * ((features + units) * units + units)
+          : 3 * ((features + units) * units + 2 * units);
+      return { shape: [units], params };
     }
     case 'BatchNormalization':
-      return { shape, params: 2 * shapeSize(shape) };
+      // Escala, desplazamiento, media y varianza por canal (último eje), como Keras.
+      return { shape, params: 4 * Math.max(0, shape[shape.length - 1] ?? 0) };
     case 'Dropout':
     default:
       return { shape, params: 0 };
