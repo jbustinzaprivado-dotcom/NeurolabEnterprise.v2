@@ -24,4 +24,16 @@ foreach ($entry in $manifest.tablas.PSObject.Properties) {
     Write-Host ("{0,-20} origen={1,6} restaurado={2,6} {3}" -f $entry.Name, $entry.Value, $restored[$entry.Name], ($(if ($ok) { "OK" } else { "DIFERENTE" })))
 }
 if ($fallos -gt 0) { throw "La prueba de restauración falló en $fallos tablas." }
+
+# Keycloak: no se restaura sobre la base en uso; se comprueba que el volcado se lee completo y
+# trae los datos de todas las tablas que tenía la base al respaldar.
+if ($manifest.keycloak) {
+    $dump = Join-Path $latest.FullName "keycloak.dump"
+    $toc = & (Join-Path $Script:PgBin "pg_restore.exe") --list $dump
+    if ($LASTEXITCODE -ne 0) { throw "El volcado de Keycloak está dañado." }
+    $withRows = @($manifest.keycloak.PSObject.Properties | Where-Object { [int]$_.Value -gt 0 } | ForEach-Object { $_.Name })
+    $missing = @($withRows | Where-Object { -not ($toc -match "TABLE DATA public $_ ") })
+    if ($missing.Count -gt 0) { throw "Al volcado de Keycloak le faltan datos de: $($missing -join ', ')." }
+    Write-Host ("Keycloak: volcado legible con datos de {0} tablas (usuarios: {1})." -f $withRows.Count, $manifest.keycloak.user_entity)
+}
 Write-Host "Prueba de restauración superada: $($latest.Name) se restaura completo."

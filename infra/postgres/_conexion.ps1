@@ -14,6 +14,19 @@ function Get-NeuroLabConnection([string]$Variable = "NEUROLAB_DATABASE_URL") {
     return [pscustomobject]@{ User = $Matches.user; Password = $Matches.pass; Host = $Matches.host; Port = $Matches.port; Database = $Matches.db }
 }
 
+# Base de Keycloak (§11): cuentas, contraseñas y sesiones del proveedor de identidad. Usa el
+# servidor de NeuroLab con el usuario `keycloak`; la clave es KEYCLOAK_DB_PASSWORD de .env.
+function Get-KeycloakConnection {
+    $envFile = Join-Path $Script:Root ".env"
+    $line = Get-Content $envFile | Where-Object { $_ -match "^KEYCLOAK_DB_PASSWORD=" } | Select-Object -First 1
+    if (-not $line) { return $null }
+    $neurolab = Get-NeuroLabConnection
+    return [pscustomobject]@{
+        User = "keycloak"; Password = $line.Substring("KEYCLOAK_DB_PASSWORD=".Length).Trim()
+        Host = $neurolab.Host; Port = $neurolab.Port; Database = "keycloak"
+    }
+}
+
 function Invoke-PgTool([string]$Tool, [pscustomobject]$Conn, [string[]]$Arguments) {
     $exe = Join-Path $Script:PgBin "$Tool.exe"
     if (-not (Test-Path $exe)) { throw "No se encontró $exe." }

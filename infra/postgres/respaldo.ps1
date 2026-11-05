@@ -2,8 +2,9 @@
 #
 #   powershell -ExecutionPolicy Bypass -File infra\postgres\respaldo.ps1 [-Conservar 7]
 #
-# Crea data\backups\<fecha>\ con neurolab.dump (pg_dump, formato custom), archivos.zip
-# (data\uploads y data\models) y manifiesto.json con los checksums SHA-256.
+# Crea data\backups\<fecha>\ con neurolab.dump (pg_dump, formato custom), keycloak.dump
+# (cuentas del proveedor de identidad, si .env lo configura), archivos.zip (data\uploads y
+# data\models) y manifiesto.json con los checksums SHA-256.
 
 param([int]$Conservar = 7)
 
@@ -18,6 +19,12 @@ New-Item -ItemType Directory -Force $target | Out-Null
 Write-Host "Volcando la base '$($conn.Database)'..."
 Invoke-PgTool "pg_dump" $conn @("-d", $conn.Database, "-Fc", "--no-owner", "-f", (Join-Path $target "neurolab.dump"))
 
+$keycloak = Get-KeycloakConnection
+if ($keycloak) {
+    Write-Host "Volcando la base de Keycloak (cuentas y sesiones)..."
+    Invoke-PgTool "pg_dump" $keycloak @("-d", $keycloak.Database, "-Fc", "--no-owner", "-f", (Join-Path $target "keycloak.dump"))
+}
+
 Write-Host "Empaquetando datasets y modelos..."
 $sources = @("data\uploads", "data\models") | ForEach-Object { Join-Path $Script:Root $_ } | Where-Object { Test-Path $_ }
 Compress-Archive -Path $sources -DestinationPath (Join-Path $target "archivos.zip") -CompressionLevel Optimal
@@ -26,6 +33,7 @@ $manifest = [ordered]@{
     creado = (Get-Date).ToUniversalTime().ToString("o")
     base = $conn.Database
     tablas = Get-TableCounts $conn $conn.Database
+    keycloak = $(if ($keycloak) { Get-TableCounts $keycloak $keycloak.Database } else { $null })
     archivos = [ordered]@{}
 }
 foreach ($file in Get-ChildItem $target -File) {
