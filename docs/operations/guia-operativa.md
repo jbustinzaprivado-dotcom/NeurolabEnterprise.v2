@@ -133,13 +133,10 @@ powershell -ExecutionPolicy Bypass -File infra\postgres\probar_respaldo.ps1     
 powershell -ExecutionPolicy Bypass -File infra\postgres\restaurar.ps1 -Respaldo <carpeta>
 ```
 
-- **Contenido del respaldo:** cada uno queda en `data\backups\<fecha>\` con el volcado de PostgreSQL (`neurolab.dump`), un ZIP de `data\uploads` y `data\models`, y un manifiesto con los checksums SHA-256. Se conservan los 7 últimos (`-Conservar N`).
+- **Contenido del respaldo:** cada uno queda en `data\backups\<fecha>\` con el volcado de PostgreSQL (`neurolab.dump`), el de Keycloak (`keycloak.dump`, con las cuentas y contraseñas), un ZIP de `data\uploads` y `data\models`, y un manifiesto con las filas por tabla y los checksums SHA-256. Se conservan los 7 últimos (`-Conservar N`).
 - **Restaurar:** detén antes la API y el worker. El script verifica los checksums antes de tocar nada.
 - **Almacén S3:** con `NEUROLAB_STORAGE_BACKEND=s3`, los archivos se respaldan con las herramientas del proveedor (`weed` en SeaweedFS o `aws s3 sync`).
-- **Keycloak:** el reino se puede recrear desde `infra/keycloak/neurolab-realm.json`, pero las cuentas creadas después viven en la base `keycloak`. Respáldala aparte:
-  ```
-  & "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -U postgres -h localhost -Fc -f keycloak.dump keycloak
-  ```
+- **Keycloak:** el respaldo incluye su base (cuentas y contraseñas). Para restaurarla también, detén Keycloak y añade `-Keycloak` a `restaurar.ps1`.
 - **Retención:** el worker aplica cada hora los plazos de M10 (auditoría 365 días, métricas 365 días, artefactos retirados 730 días). También se puede lanzar desde M10 → *Aplicar retención*.
 
 ## 8. Recuperación ante fallos
@@ -202,8 +199,8 @@ La CI de GitHub Actions corre en cada push las pruebas contra PostgreSQL y Seawe
 | 4 | Auditoría de acciones relevantes y logs sin secretos | ✅ |
 | 5 | Pruebas unitarias, de integración, de contrato y de recuperación en CI | ✅ |
 | 6 | Prueba end-to-end desde el navegador | ✅ `apps/web/e2e` (Playwright), en CI |
-| 7 | Respaldo probado con restauración real (`probar_respaldo.ps1`) sobre la base de trabajo | ⏳ Pendiente de ejecutar |
-| 8 | Respaldo de la base de Keycloak incluido en el script | ⏳ Pendiente: hoy es un comando manual |
+| 7 | Respaldo probado con restauración real (`probar_respaldo.ps1`) sobre la base de trabajo | ✅ Probado el 2026-11-04: 14 tablas idénticas |
+| 8 | Respaldo de la base de Keycloak incluido en el script | ✅ `keycloak.dump`; se restaura con `restaurar.ps1 -Keycloak` |
 | 9 | HTTPS en la web, la API y Keycloak (cifrado en tránsito, §11) | ⏳ Lo da Render al desplegar ([render.yaml](../../render.yaml)); pendiente de publicar |
 | 10 | Despliegue con Docker probado de punta a punta | ⏳ Pendiente: Docker no está instalado |
 | 11 | Alertas configuradas en Prometheus (sección 6) | ⏳ Pendiente: las métricas existen |

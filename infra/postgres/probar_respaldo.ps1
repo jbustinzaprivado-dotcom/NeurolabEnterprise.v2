@@ -13,7 +13,7 @@ $latest = Get-ChildItem (Join-Path $Script:Root "data\backups") -Directory | Sor
 $manifest = Get-Content (Join-Path $latest.FullName "manifiesto.json") -Raw -Encoding utf8 | ConvertFrom-Json
 
 $test = Get-NeuroLabConnection "NEUROLAB_TEST_DATABASE_URL"
-Invoke-PgTool "psql" $test @("-d", $test.Database, "-q", "-c", "DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
+Invoke-PgTool "psql" $test @("-d", $test.Database, "-q", "-c", "SET client_min_messages = warning; DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 & (Join-Path $PSScriptRoot "restaurar.ps1") -Respaldo $latest.Name -Base $test.Database -SinArchivos
 
 $restored = Get-TableCounts $test $test.Database
