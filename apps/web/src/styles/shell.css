@@ -433,6 +433,50 @@
   place-items: center;
 }
 
+/* --- Menú fijo (escritorio) ------------------------------------------------
+   Fijado, el menú ocupa su columna y el contenido se corre a la derecha; sin
+   fijar, se despliega encima al pasar el cursor, sin mover la página. */
+.nav__pin {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  color: var(--nav-text);
+  background: transparent;
+}
+
+.nav__pin:hover,
+.nav__pin[aria-pressed='true'] {
+  background: var(--nav-hover-bg);
+  color: var(--nav-text-active);
+}
+
+.shell[data-mode='expanded'][data-nav-pinned='true'] {
+  --nav-w: var(--nav-width);
+}
+
+.shell[data-mode='expanded'][data-nav-pinned='true'] .nav {
+  width: var(--nav-width);
+  box-shadow: none;
+  transition: none;
+}
+
+.shell[data-mode='expanded'][data-nav-pinned='true'] .nav__inner {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: none;
+}
+
+.shell[data-mode='expanded'][data-nav-pinned='true'] .nav__peek {
+  display: none;
+}
+
 /* --- Cajón móvil: velo y botón de cierre --------------------------------- */
 
 .scrim {

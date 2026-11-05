@@ -130,6 +130,22 @@
   color: var(--text-secondary);
 }
 
+/* La nota ocupa lo que deja la minigráfica (ancho fijo) y puede usar dos líneas. */
+.kpi__foot .chart__svg {
+  flex: 0 0 auto;
+  width: 84px;
+}
+
+.kpi__note {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
 /* --- Retícula principal: contenido + columna lateral ----------------------- */
 
 .dash__main {

@@ -58,6 +58,8 @@ export function EvaluationPage() {
   const [normalized, setNormalized] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [observationFilter, setObservationFilter] = useState<ObservationKind | 'ALL'>('ALL');
+  /* Comparación y observaciones: por defecto solo el proyecto de la ejecución evaluada. */
+  const [scope, setScope] = useState<'project' | 'all'>('project');
   const [notice, setNotice] = useState<Notice | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -220,7 +222,22 @@ export function EvaluationPage() {
 
   const weakest = perClass[Number(summary.weakestClassId)];
   const weakestLabel = classesOf(current)[Number(summary.weakestClassId)]?.label ?? '—';
-  const unreviewed = observations.filter((item) => !item.reviewed).length;
+  const inScope = (projectId: string) => scope === 'all' || projectId === current.projectId;
+  const scopedPeers = peers.filter((run) => inScope(run.projectId));
+  const scopedRuns = runs.filter((run) => inScope(run.projectId));
+  const scopedRunIds = new Set(scopedRuns.map((run) => run.id));
+  const scopedObservations = observations.filter((item) => scopedRunIds.has(item.runId));
+  const unreviewed = scopedObservations.filter((item) => !item.reviewed).length;
+  const scopeToggle = (
+    <div className="filters" role="group" aria-label="Proyectos incluidos">
+      <button type="button" className="filter-btn" aria-pressed={scope === 'project'} onClick={() => setScope('project')}>
+        Este proyecto
+      </button>
+      <button type="button" className="filter-btn" aria-pressed={scope === 'all'} onClick={() => setScope('all')}>
+        Todos los proyectos
+      </button>
+    </div>
+  );
   const finalValLoss = current.history[current.history.length - 1]?.valLoss ?? 0;
 
   const f1Delta = previousSummary ? (summary.f1 - previousSummary.f1) * 100 : null;
@@ -592,12 +609,19 @@ export function EvaluationPage() {
 
         <Panel
           title="Comparación de ejecuciones"
-          subtitle={`Ejecuciones de ${regression ? 'regresión' : 'clasificación'} completadas. El Δ ${regression ? 'R²' : 'F1'} se mide contra la ejecución evaluada.`}
+          subtitle={`Ejecuciones de ${regression ? 'regresión' : 'clasificación'} completadas${scope === 'project' ? ` en ${current.project}` : ''}. El Δ ${regression ? 'R²' : 'F1'} se mide contra la ejecución evaluada.`}
           icon="queue"
-          actions={<Chip tone="outline">{peers.length} {peers.length === 1 ? 'ejecución' : 'ejecuciones'}</Chip>}
+          actions={
+            <>
+              {scopeToggle}
+              <Chip tone="outline">
+                {scopedPeers.length} {scopedPeers.length === 1 ? 'ejecución' : 'ejecuciones'}
+              </Chip>
+            </>
+          }
         >
           <ComparisonTable
-            runs={peers}
+            runs={scopedPeers}
             currentId={current.id}
             compareIds={compareIds}
             onSelect={selectRun}
@@ -610,14 +634,17 @@ export function EvaluationPage() {
           subtitle="Registro acumulado por ejecución; acompaña la evaluación final y la futura versión del modelo."
           icon="report"
           actions={
-            <Chip tone={unreviewed > 0 ? 'preparing' : 'completed'} dot>
-              {unreviewed > 0 ? `${unreviewed} sin revisar` : 'Todo revisado'}
-            </Chip>
+            <>
+              {scopeToggle}
+              <Chip tone={unreviewed > 0 ? 'preparing' : 'completed'} dot>
+                {unreviewed > 0 ? `${unreviewed} sin revisar` : 'Todo revisado'}
+              </Chip>
+            </>
           }
         >
           <ObservationLog
-            runs={runs}
-            observations={observations}
+            runs={scopedRuns}
+            observations={scopedObservations}
             currentRunId={current.id}
             filter={observationFilter}
             onFilter={setObservationFilter}

@@ -24,7 +24,9 @@ function KpiCard({ kpi }: { kpi: DashboardKpi }) {
       </div>
 
       <div className="kpi__foot">
-        <span className="u-truncate">{kpi.footnote}</span>
+        <span className="kpi__note" title={kpi.footnote}>
+          {kpi.footnote}
+        </span>
         <Sparkline values={kpi.spark} />
       </div>
     </article>

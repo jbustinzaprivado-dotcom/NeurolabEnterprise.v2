@@ -8,6 +8,8 @@ interface SidebarProps {
   mode: LayoutMode;
   open: boolean;
   onClose: () => void;
+  pinned: boolean;
+  onTogglePinned: () => void;
   actor: Actor;
   liveBadges: Record<string, number>;
 }
@@ -43,7 +45,7 @@ function NavRow({
   );
 }
 
-export function Sidebar({ mode, open, onClose, actor, liveBadges }: SidebarProps) {
+export function Sidebar({ mode, open, onClose, pinned, onTogglePinned, actor, liveBadges }: SidebarProps) {
   const isDrawer = mode === 'drawer';
 
   return (
@@ -67,6 +69,19 @@ export function Sidebar({ mode, open, onClose, actor, liveBadges }: SidebarProps
         <button type="button" className="nav__close" onClick={onClose} aria-label="Cerrar navegación">
           <Icon name="close" size={18} />
         </button>
+
+        {isDrawer ? null : (
+          <button
+            type="button"
+            className="nav__pin"
+            onClick={onTogglePinned}
+            aria-pressed={pinned}
+            aria-label={pinned ? 'Soltar el menú (se despliega al pasar el cursor)' : 'Fijar el menú abierto'}
+            title={pinned ? 'Soltar el menú' : 'Fijar el menú abierto'}
+          >
+            <Icon name={pinned ? 'close' : 'lock'} size={15} />
+          </button>
+        )}
 
         <Link to="/" className="nav__brand" onClick={onClose}>
           <span className="nav__logo">

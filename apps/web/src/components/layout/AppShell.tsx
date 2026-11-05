@@ -8,9 +8,31 @@ import { queryClient } from '@/lib/api/queryClient';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 
+/* Preferencia de cada persona en su navegador: menú fijo (empuja el contenido) o desplegable. */
+const PIN_KEY = 'neurolab.nav.pinned';
+
+function readPinned(): boolean {
+  try {
+    return window.localStorage.getItem(PIN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 function ShellFrame() {
   const mode = useLayoutMode();
   const [navOpen, setNavOpen] = useState(false);
+  const [pinned, setPinned] = useState(readPinned);
+  const togglePinned = () => {
+    setPinned((value) => {
+      try {
+        window.localStorage.setItem(PIN_KEY, value ? '0' : '1');
+      } catch {
+        /* Sin almacenamiento (ventana privada): la preferencia dura solo esta visita. */
+      }
+      return !value;
+    });
+  };
   const location = useLocation();
   const { snapshot } = usePlatformData();
   const { actor } = useSession();
@@ -42,7 +64,7 @@ function ShellFrame() {
   };
 
   return (
-    <div className="shell" data-mode={mode} data-nav-open={navOpen}>
+    <div className="shell" data-mode={mode} data-nav-open={navOpen} data-nav-pinned={pinned}>
       <a className="u-skip-link" href="#main-content">
         Saltar al contenido principal
       </a>
@@ -51,6 +73,8 @@ function ShellFrame() {
         mode={mode}
         open={navOpen}
         onClose={() => setNavOpen(false)}
+        pinned={pinned}
+        onTogglePinned={togglePinned}
         actor={actor}
         liveBadges={liveBadges}
       />

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Actor } from '@/types/domain';
 import { familyMeta } from '@/lib/nav';
 import { formatDuration, formatNumber } from '@/lib/format';
@@ -111,6 +111,19 @@ function shapeWarning(
   return undefined;
 }
 
+/* Cada campo del formulario y la clave de su error en validateLaunch. */
+const FIELD_KEYS: Record<string, string> = {
+  'tr-project': 'projectId',
+  'tr-architecture': 'architecture',
+  'tr-dataset': 'dataset',
+  'tr-target': 'targetColumn',
+  'tr-epochs': 'epochs',
+  'tr-batch': 'batch',
+  'tr-rate': 'learningRate',
+  'tr-seed': 'seed',
+  'tr-priority': 'priority',
+};
+
 export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = false, onChange, onLaunch }: LaunchPanelProps) {
   const launchable = projects.filter((item) => item.canLaunch);
   const project = launchable.find((item) => item.id === values.projectId);
@@ -128,6 +141,25 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
     : null;
 
   const blocked = Object.keys(issues.errors).length > 0 || !project || Boolean(architecture && !architecture.trainable) || busy;
+
+  /* Los errores aparecen al salir de un campo que se tocó o al intentar encolar, no antes. */
+  const formRef = useRef<HTMLFormElement>(null);
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
+  const [attempted, setAttempted] = useState(false);
+  const touch = (target: EventTarget) => {
+    const key = FIELD_KEYS[(target as HTMLElement).id];
+    if (key && !touched.has(key)) setTouched(new Set(touched).add(key));
+  };
+  useEffect(() => {
+    // Formulario vacío otra vez (tras encolar o restablecer): vuelve a empezar limpio.
+    if (!values.projectId) {
+      setTouched(new Set());
+      setAttempted(false);
+    }
+  }, [values.projectId]);
+  const errors: Partial<Record<string, string>> = attempted
+    ? issues.errors
+    : Object.fromEntries(Object.entries(issues.errors).filter(([key]) => touched.has(key)));
 
   return (
     <Panel
@@ -154,9 +186,17 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
     >
       <form
         className="tr-form"
+        ref={formRef}
+        onBlur={(event) => touch(event.target)}
+        onChange={(event) => touch(event.target)}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!blocked) onLaunch();
+          if (!blocked) {
+            onLaunch();
+            return;
+          }
+          setAttempted(true);
+          requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
         }}
         noValidate
       >
@@ -166,14 +206,14 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
             <Field
               id="tr-project"
               label="Proyecto"
-              error={issues.errors.projectId}
+              error={errors.projectId}
               wide
             >
               <select
                 id="tr-project"
                 className="tr-input"
                 value={values.projectId}
-                aria-invalid={Boolean(issues.errors.projectId)}
+                aria-invalid={Boolean(errors.projectId)}
                 onChange={(event) =>
                   onChange({ projectId: event.target.value, architecture: '', dataset: '', targetColumn: '' })
                 }
@@ -192,7 +232,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
             <Field
               id="tr-architecture"
               label="Arquitectura"
-              error={issues.errors.architecture}
+              error={errors.architecture}
               warning={
                 architecture && !architecture.trainable
                   ? `${familyMeta[architecture.family].label} está documentada pero aún no habilitada para entrenar (§18).`
@@ -209,7 +249,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 className="tr-input"
                 value={values.architecture}
                 disabled={!project || project.architectures.length === 0}
-                aria-invalid={Boolean(issues.errors.architecture)}
+                aria-invalid={Boolean(errors.architecture)}
                 onChange={(event) => onChange({ architecture: event.target.value })}
               >
                 <option value="">
@@ -227,7 +267,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
             <Field
               id="tr-dataset"
               label="Dataset"
-              error={issues.errors.dataset}
+              error={errors.dataset}
               warning={shapeWarning(architecture?.inputShape, dataset?.columns, values.targetColumn)}
               hint={
                 project && project.datasets.length > 0
@@ -240,7 +280,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 className="tr-input"
                 value={values.dataset}
                 disabled={!project || project.datasets.length === 0}
-                aria-invalid={Boolean(issues.errors.dataset)}
+                aria-invalid={Boolean(errors.dataset)}
                 onChange={(event) => onChange({ dataset: event.target.value, targetColumn: '' })}
               >
                 <option value="">
@@ -257,7 +297,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
             <Field
               id="tr-target"
               label="Columna objetivo"
-              error={issues.errors.targetColumn}
+              error={errors.targetColumn}
               hint={headHint(target, architecture?.outputUnits ?? null)}
             >
               <select
@@ -265,7 +305,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 className="tr-input"
                 value={values.targetColumn}
                 disabled={!dataset}
-                aria-invalid={Boolean(issues.errors.targetColumn)}
+                aria-invalid={Boolean(errors.targetColumn)}
                 onChange={(event) => onChange({ targetColumn: event.target.value })}
               >
                 <option value="">{dataset ? 'Seleccione qué debe predecir…' : 'Elija antes un dataset'}</option>
@@ -305,7 +345,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
               id="tr-epochs"
               label="Épocas"
               hint={`Entre ${LIMITS.epochs.min} y ${limits.epochs} (límite vigente de M10).`}
-              error={issues.errors.epochs}
+              error={errors.epochs}
             >
               <input
                 id="tr-epochs"
@@ -316,7 +356,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 max={limits.epochs}
                 step={1}
                 value={values.epochs}
-                aria-invalid={Boolean(issues.errors.epochs)}
+                aria-invalid={Boolean(errors.epochs)}
                 onChange={(event) => onChange({ epochs: event.target.value })}
               />
             </Field>
@@ -325,7 +365,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
               id="tr-batch"
               label="Tamaño de lote"
               hint={`Entre ${LIMITS.batch.min} y ${limits.batch} muestras.`}
-              error={issues.errors.batch}
+              error={errors.batch}
               warning={issues.warnings.batch}
             >
               <input
@@ -337,7 +377,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 max={limits.batch}
                 step={1}
                 value={values.batch}
-                aria-invalid={Boolean(issues.errors.batch || issues.warnings.batch)}
+                aria-invalid={Boolean(errors.batch || issues.warnings.batch)}
                 onChange={(event) => onChange({ batch: event.target.value })}
               />
             </Field>
@@ -365,7 +405,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
               id="tr-rate"
               label="Tasa de aprendizaje"
               hint="Acepta coma decimal; el worker la registra en la semilla del experimento."
-              error={issues.errors.learningRate}
+              error={errors.learningRate}
               warning={issues.warnings.learningRate}
             >
               <input
@@ -375,7 +415,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 inputMode="decimal"
                 placeholder="0,001"
                 value={values.learningRate}
-                aria-invalid={Boolean(issues.errors.learningRate || issues.warnings.learningRate)}
+                aria-invalid={Boolean(errors.learningRate || issues.warnings.learningRate)}
                 onChange={(event) => onChange({ learningRate: event.target.value })}
               />
             </Field>
@@ -383,7 +423,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
             <Field
               id="tr-seed"
               label="Semilla"
-              error={issues.errors.seed}
+              error={errors.seed}
               hint="Determinismo del experimento: la misma semilla reproduce la misma curva."
             >
               <input
@@ -394,7 +434,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
                 min={0}
                 step={1}
                 value={values.seed}
-                aria-invalid={Boolean(issues.errors.seed)}
+                aria-invalid={Boolean(errors.seed)}
                 onChange={(event) => onChange({ seed: event.target.value })}
               />
             </Field>
@@ -402,14 +442,14 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
             <Field
               id="tr-priority"
               label="Prioridad en cola"
-              error={issues.errors.priority}
+              error={errors.priority}
               hint={`Su rol permite hasta ${PRIORITY_LABEL[ceiling].toLowerCase()}.`}
             >
               <select
                 id="tr-priority"
                 className="tr-input"
                 value={values.priority}
-                aria-invalid={Boolean(issues.errors.priority)}
+                aria-invalid={Boolean(errors.priority)}
                 onChange={(event) => onChange({ priority: event.target.value as LaunchValues['priority'] })}
               >
                 {(Object.keys(PRIORITY_LABEL) as (keyof typeof PRIORITY_LABEL)[]).map((key) => (
@@ -459,7 +499,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
           ) : null}
 
           <div className="tr-form__actions">
-            <button type="submit" className="btn btn--primary" disabled={blocked}>
+            <button type="submit" className="btn btn--primary" disabled={busy}>
               <Icon name={busy ? 'clock' : 'zap'} size={15} />
               {busy ? 'Validando en la API…' : 'Encolar ejecución'}
             </button>

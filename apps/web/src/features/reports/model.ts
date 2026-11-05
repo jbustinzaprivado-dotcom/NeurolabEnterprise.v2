@@ -1222,13 +1222,16 @@ export function reportFileName(document: ReportDocument, format: ReportFormat, n
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 48);
-  const stamp = new Date(now).toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  // Hora local de quien descarga (AAAAMMDD-HHMM), no UTC: coincide con el reloj de su equipo.
+  const date = new Date(now);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
   return `neurolab-informe-${slug}-${stamp}.${format.toLowerCase()}`;
 }
 
 /**
- * Huella determinista del archivo exportado. La demo no tiene backend, así que se calcula en la
- * consola con FNV-1a extendido: sirve para comparar dos descargas, no para firmar legalmente.
+ * Huella determinista del archivo exportado, calculada en el navegador con FNV-1a extendido:
+ * sirve para comparar dos descargas, no para firmar legalmente.
  */
 export function fingerprint(content: string): string {
   let out = '';
@@ -1305,7 +1308,6 @@ function layerSettings(layer: ArchitectureConfig['layers'][number]): string {
 function traceNote(job: TrainingJob, record: RunRecord, technical: boolean): string {
   const notes: string[] = [];
   if (record.retryOf) notes.push(`reintento de ${record.retryOf}`);
-  if (record.origin === 'plataforma') notes.push('API M01');
   if (job.cancelRequested && job.status !== 'CANCELLED') notes.push('cancelación solicitada');
   if (job.status === 'CANCELLED' && record.motivo) notes.push(technical ? record.motivo : 'cancelado con motivo registrado');
   if (record.priority !== 'NORMAL') notes.push(`prioridad ${PRIORITY_LABEL[record.priority].toLowerCase()}`);
