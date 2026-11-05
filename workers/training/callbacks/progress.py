@@ -26,6 +26,7 @@ class ProgressCallback(keras.callbacks.Callback):
         epochs: int,
         max_seconds: int,
         extra: Callable[[keras.Model], dict[str, float]] | None = None,
+        memory_limit_mb: float | None = None,
     ) -> None:
         super().__init__()
         self.job_id = job_id
@@ -35,6 +36,24 @@ class ProgressCallback(keras.callbacks.Callback):
         # Métricas adicionales por época que Keras no calcula (p. ej. F1 macro).
         self.extra = extra
         self.stop_reason: str | None = None
+        # Límite de memoria (§10): se mide cada pocos lotes y al cerrar cada época.
+        self.memory_limit_mb = memory_limit_mb
+        self.peak_memory_mb = 0.0
+
+    def _memory_exceeded(self) -> bool:
+        if self.memory_limit_mb is None:
+            return False
+        from workers.training.jobs.resources import memory_mb
+
+        used = memory_mb()
+        self.peak_memory_mb = max(self.peak_memory_mb, used)
+        return used > self.memory_limit_mb
+
+    def on_train_batch_end(self, batch: int, logs: dict[str, Any] | None = None) -> None:
+        if batch % 20 == 0 and self._memory_exceeded():
+            # Se detiene antes de terminar la época: esperar podría agotar la memoria de la máquina.
+            self.stop_reason = "memory"
+            self.model.stop_training = True
 
     def on_epoch_end(self, epoch: int, logs: dict[str, Any] | None = None) -> None:
         values = {name: float(value) for name, value in (logs or {}).items() if name != "learning_rate"}
@@ -57,7 +76,9 @@ class ProgressCallback(keras.callbacks.Callback):
             # El 100 % se reserva para cuando la evaluación final y el registro terminan.
             job.progress = min(99.0, number / self.epochs * 100)
             job.heartbeat_at = now
-            job.result_json = {**job.result_json, "latest": values}
+            job.result_json = {**job.result_json, "latest": values,
+                               "resources": {**job.result_json.get("resources", {}),
+                                             "peakMemoryMb": round(self.peak_memory_mb)}}
             job_events.emit(db, self.job_id, "metric", epoch=number, epochs=self.epochs, progress=job.progress, **values)
 
             worker = db.get(WorkerNode, self.worker_id)
@@ -70,6 +91,8 @@ class ProgressCallback(keras.callbacks.Callback):
                 self.stop_reason = "shutdown"
             elif time.monotonic() > self.deadline:
                 self.stop_reason = "timeout"
+            elif self.stop_reason == "memory" or self._memory_exceeded():
+                self.stop_reason = "memory"
             if self.stop_reason:
                 self.model.stop_training = True
                 job_events.log(db, self.job_id, f"Deteniendo al final de la época {number} ({self.stop_reason}).", "warn")

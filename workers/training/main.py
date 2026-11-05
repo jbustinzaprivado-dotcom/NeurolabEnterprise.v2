@@ -125,6 +125,11 @@ def main() -> None:
     signal.signal(signal.SIGTERM, on_signal)
 
     wait_for_schema()
+    # La GPU se fija antes de importar TensorFlow (§10); los cambios rigen al reiniciar el worker.
+    from workers.training.jobs.resources import hide_gpus_if_disabled
+
+    gpus = hide_gpus_if_disabled()
+    logger.info("GPU por trabajo: %s.", gpus if gpus else "ninguna (solo CPU)")
     worker_id = f"{socket.gethostname()}-{os.getpid()}"
     logger.info("Worker %s listo. Familias entrenables: %s", worker_id, ", ".join(settings.training_families))
     import workers.training.jobs.runner  # noqa: F401  carga TensorFlow una sola vez, antes del primer trabajo

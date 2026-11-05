@@ -145,7 +145,7 @@ stateDiagram-v2
 | RBAC y pertenencia | Matriz de la sección 2, comprobada en cada consulta y acción |
 | Validación de entradas | Esquemas Pydantic en cada endpoint. La arquitectura y el CSV se vuelven a validar en el servidor |
 | Secretos | Solo en `.env` o en variables del servidor; el bundle de React no contiene ninguno |
-| Límites de tasa y cuotas | Peticiones por minuto y usuario, intentos de inicio de sesión por IP, tamaño de carga, épocas, duración, concurrencia por usuario y proyecto, y almacenamiento. Todos editables en M10 |
+| Límites de tasa y cuotas | Peticiones por minuto y usuario, intentos de inicio de sesión por IP, tamaño de carga, épocas, duración, concurrencia por usuario y proyecto, almacenamiento, y **núcleos de CPU, memoria y GPU por entrenamiento** (§10, los aplica el worker). Todos editables en M10 |
 | Auditoría | Inicio, cancelación y reintento de trabajos, cambios de permisos y de rol, exportaciones, cambios de estado de modelos, descargas e inicios de sesión |
 | Respaldos y retención | Respaldo con manifiesto y checksums, más prueba de restauración. La retención de auditoría, métricas y artefactos retirados la aplica el worker cada hora |
 | Aislamiento de workers | El entrenamiento corre en otro proceso; nunca se ejecuta código ni notebooks aportados por usuarios |

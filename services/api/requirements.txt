@@ -24,6 +24,9 @@ boto3==1.40.40
 # Proveedor de identidad (§11): validación de tokens OIDC (RS256, JWKS)
 PyJWT[crypto]==2.10.1
 
+# Límites de CPU y memoria por entrenamiento (§10)
+psutil==7.0.0
+
 # Operación (§5): métricas Prometheus
 prometheus-client==0.23.1
 

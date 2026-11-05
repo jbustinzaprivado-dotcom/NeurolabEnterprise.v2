@@ -180,7 +180,8 @@ Solo para administración.
   - entrenamientos activos por usuario y por proyecto;
   - duración máxima por trabajo y épocas por trabajo;
   - tamaño de carga y cuota de almacenamiento;
-  - peticiones por minuto por usuario.
+  - peticiones por minuto por usuario;
+  - **recursos de cada entrenamiento**: núcleos de CPU, memoria y GPU. El worker fija el entrenamiento a esos núcleos y lo detiene con un mensaje claro si supera la memoria. El cambio de GPU rige al reiniciar el worker.
 - **Políticas de seguridad:** duración de la sesión, política de MFA y plazos de retención.
 - **Aplicar retención:** ejecuta la limpieza en el momento; normalmente la hace el worker cada hora.
 - **Salud del sistema:** estado de la API, los workers, la base de datos y el almacenamiento.

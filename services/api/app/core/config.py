@@ -78,6 +78,10 @@ class Settings:
     max_active_jobs_per_project: int = field(default_factory=lambda: int(_env("MAX_ACTIVE_JOBS_PER_PROJECT", "4")))
     max_job_seconds: int = field(default_factory=lambda: int(_env("MAX_JOB_SECONDS", "1800")))
     storage_limit_gb: float = field(default_factory=lambda: float(_env("STORAGE_LIMIT_GB", "20")))
+    # Recursos por entrenamiento (§10): valores iniciales; luego se editan en M10.
+    max_job_cpu_threads: int = field(default_factory=lambda: int(_env("MAX_JOB_CPU_THREADS", "4")))
+    max_job_memory_mb: int = field(default_factory=lambda: int(_env("MAX_JOB_MEMORY_MB", "4096")))
+    max_job_gpus: int = field(default_factory=lambda: int(_env("MAX_JOB_GPUS", "0")))
     # Almacenamiento de objetos (§5): "s3" (MinIO/AWS) o "local" (carpeta data/, desarrollo).
     storage_backend: str = field(default_factory=lambda: _env("STORAGE_BACKEND", "local"))
     s3_endpoint: str = field(default_factory=lambda: _env("S3_ENDPOINT", ""))

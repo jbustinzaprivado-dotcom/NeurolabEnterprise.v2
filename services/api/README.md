@@ -18,6 +18,7 @@ El documento es la regla principal. Estado frente a lo que exige:
 | Familias progresivas (§18) | Se validan las cuatro; solo FEEDFORWARD entrena | Cumple |
 | Almacenamiento de objetos (§5) | Interfaz única con backend S3 (SeaweedFS en Docker y en la CI; también MinIO o AWS) y backend local `data/` para desarrollo; producción exige S3 | Cumple (en local, respaldo `data/` mientras no haya MinIO) |
 | Proveedor de identidad seguro (§11) | Keycloak 26.8.1 (reino `neurolab`, `infra/keycloak`). La interfaz entra con Authorization Code + PKCE; la API valida tokens RS256 por JWKS (emisor, audiencia `neurolab-api`, expiración) y enlaza cada cuenta con su usuario de NeuroLab. En producción la API no arranca sin OIDC. El modo `local` (contraseñas propias, bloqueo tras 5 intentos) queda para pruebas | Cumple; HTTPS pendiente (fase 6) |
+| Límites de recursos por trabajo (§10) | Núcleos de CPU (afinidad del proceso), memoria (se mide durante el entrenamiento y se detiene al superarla) y GPU, editables en M10; el uso real queda en cada trabajo | Cumple |
 | Límites de tasa (§11) | Por usuario (editable en M10, 600/min por defecto) y por IP en el inicio de sesión (10/min); responde 429 con `Retry-After` | Cumple |
 | Política de retención (§11) | Auditoría, métricas por época y artefactos de modelos retirados; el worker la aplica cada hora y M10 puede lanzarla a mano | Cumple |
 | Cifrado en tránsito (§11) | HTTP en local; HTTPS va con el despliegue | Pendiente (fase 6) |

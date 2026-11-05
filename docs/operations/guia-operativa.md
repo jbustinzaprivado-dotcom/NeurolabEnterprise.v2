@@ -48,7 +48,7 @@ Toda la configuración va en variables `NEUROLAB_*`, leídas del entorno o de `.
 | `NEUROLAB_TRAINING_FAMILIES` | `FEEDFORWARD` | Se amplía cuando cada familia tenga sus pruebas |
 | `NEUROLAB_WORKER_STALE_SECONDS` | `120` | Ajustar si la base o la red tienen pausas largas |
 
-Los límites de uso (épocas, carga, duración, concurrencia, tasa y cuota) tienen valores iniciales en variables, y luego se editan en **M10** sin reiniciar nada.
+Los límites de uso (épocas, carga, duración, concurrencia, tasa, cuota, y núcleos de CPU, memoria y GPU por entrenamiento) tienen valores iniciales en variables (`NEUROLAB_MAX_JOB_CPU_THREADS=4`, `NEUROLAB_MAX_JOB_MEMORY_MB=4096`, `NEUROLAB_MAX_JOB_GPUS=0`, etc.) y luego se editan en **M10** sin reiniciar nada. La excepción es la GPU: TensorFlow la fija al arrancar, así que su cambio rige al reiniciar el worker.
 
 ## 4. Proveedor de identidad (Keycloak)
 

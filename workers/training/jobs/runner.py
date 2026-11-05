@@ -30,6 +30,7 @@ from app.modules.datasets import read_csv_bytes
 from app.repositories.models import ModelVersion, TrainingJob, WorkerNode
 from app.services import audit, job_events, platform_settings
 from workers.training.callbacks.progress import ProgressCallback
+from workers.training.jobs.resources import CpuPinning, memory_mb, read_limits, total_cores
 from workers.training.pipelines.model_builder import build_model
 from workers.training.pipelines.tabular import PreparedData, prepare
 
@@ -341,8 +342,10 @@ def _run(job_id: str, worker_id: str) -> str:
 
         with SessionLocal() as db:
             max_seconds = int(platform_settings.limit(db, "duration") * 60)
+        limits = read_limits()
         extra = _f1_per_epoch(data) if params["task"] == "classification" else None
-        progress = ProgressCallback(job_id, worker_id, params["epochs"], max_seconds, extra)
+        progress = ProgressCallback(job_id, worker_id, params["epochs"], max_seconds, extra,
+                                    memory_limit_mb=limits.memory_mb)
         callbacks: list[keras.callbacks.Callback] = [progress]
         early = None
         if params.get("earlyStoppingPatience"):
@@ -351,12 +354,24 @@ def _run(job_id: str, worker_id: str) -> str:
             )
             callbacks.insert(0, early)
 
-        model.fit(
-            data.x_train, data.y_train,
-            validation_data=(data.x_val, data.y_val),
-            epochs=params["epochs"], batch_size=params["batchSize"],
-            callbacks=callbacks, verbose=0,
-        )
+        with CpuPinning(limits.cpu_threads) as cpu:
+            import tensorflow as tf
+
+            gpus = len(tf.config.list_physical_devices("GPU"))
+            with SessionLocal() as db:
+                cores = f"{cpu.applied} de {total_cores()} núcleos" if cpu.applied else f"{total_cores()} núcleos (sin límite en este sistema)"
+                job_events.log(db, job_id, f"Recursos: {cores} · memoria máx. {limits.memory_mb} MB "
+                                           f"(en uso {memory_mb():.0f} MB) · {'GPU' if gpus else 'sin GPU, solo CPU'}.")
+                job = db.get(TrainingJob, job_id)
+                job.result_json = {**job.result_json, "resources": {"cpuThreads": cpu.applied or total_cores(),
+                                                                    "memoryLimitMb": limits.memory_mb, "gpus": gpus}}
+                db.commit()
+            model.fit(
+                data.x_train, data.y_train,
+                validation_data=(data.x_val, data.y_val),
+                epochs=params["epochs"], batch_size=params["batchSize"],
+                callbacks=callbacks, verbose=0,
+            )
 
         if progress.stop_reason == "lost":
             raise JobLost(sm.FAILED)
@@ -367,6 +382,11 @@ def _run(job_id: str, worker_id: str) -> str:
             return sm.CANCELLED
         if progress.stop_reason == "shutdown":
             _finish(job_id, sm.FAILED, "El worker se detuvo durante la ejecución; reintenta el trabajo.")
+            return sm.FAILED
+        if progress.stop_reason == "memory":
+            _finish(job_id, sm.FAILED, f"Superó el límite de memoria de {limits.memory_mb} MB "
+                                       f"(llegó a {progress.peak_memory_mb:.0f} MB). Reduce el tamaño de lote o "
+                                       "la red, o pide a administración más memoria por trabajo.")
             return sm.FAILED
         if progress.stop_reason == "timeout":
             _finish(job_id, sm.FAILED, f"Superó el límite de duración de {max_seconds // 60} min.")

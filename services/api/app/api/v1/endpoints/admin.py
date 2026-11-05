@@ -100,7 +100,15 @@ def _usage(db: Session) -> dict[str, float]:
         "upload": round(largest / 1024**2, 2),
         "rate": limiter.peak(),
         "storage": dashboard.health(db)["storageUsedGb"],
+        # Lo que usa ahora el entrenamiento en curso más exigente (lo registra el worker).
+        "cpuThreads": max((_resource(job, "cpuThreads") for job in active), default=0),
+        "memory": max((_resource(job, "peakMemoryMb") for job in active), default=0),
+        "gpu": max((_resource(job, "gpus") for job in active), default=0),
     }
+
+
+def _resource(job: TrainingJob, key: str) -> float:
+    return float((job.result_json or {}).get("resources", {}).get(key, 0) or 0)
 
 
 def _health(db: Session) -> list[dict[str, Any]]:

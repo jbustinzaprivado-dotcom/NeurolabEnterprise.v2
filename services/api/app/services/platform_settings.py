@@ -45,6 +45,22 @@ LIMIT_DEFS: dict[str, dict[str, Any]] = {
         "hint": "Límite de tasa de la API (§11); el canal SSE no cuenta.",
         "default": settings.rate_limit_per_minute,
     },
+    # Recursos de cada entrenamiento (§10): los aplica el worker mientras entrena.
+    "cpuThreads": {
+        "label": "Núcleos de CPU por trabajo", "unit": "núcleos", "min": 1, "max": 64, "step": 1,
+        "hint": "El worker fija el entrenamiento a estos núcleos; el resto queda libre para la API y la base.",
+        "default": settings.max_job_cpu_threads,
+    },
+    "memory": {
+        "label": "Memoria por trabajo", "unit": "MB", "min": 512, "max": 65536, "step": 256,
+        "hint": "Si el proceso de entrenamiento la supera, el worker lo detiene y lo marca como fallido.",
+        "default": settings.max_job_memory_mb,
+    },
+    "gpu": {
+        "label": "GPU por trabajo", "unit": "GPU", "min": 0, "max": 8, "step": 1,
+        "hint": "Con 0 el worker no usa GPU. Rige desde que el worker se reinicia (TensorFlow fija las GPU al arrancar).",
+        "default": settings.max_job_gpus,
+    },
     "storage": {
         "label": "Cuota de almacenamiento", "unit": "GB", "min": 1, "max": 500, "step": 1,
         "hint": "Datasets y artefactos de modelo en el almacenamiento de objetos.",
