@@ -111,10 +111,12 @@ $token = (Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/mast
 $headers = @{ Authorization = "Bearer $token" }
 $api = "http://localhost:8180/admin/realms/neurolab/clients"
 $client = (Invoke-RestMethod -Uri "$api`?clientId=neurolab-web" -Headers $headers)[0]
-# Se quitan túneles de demostraciones anteriores y se añade el actual.
-$redirects = @($client.redirectUris | Where-Object { $_ -notmatch "trycloudflare\.com" }) + "$webUrl/*"
-$client.redirectUris = $redirects
-$logout = @(($client.attributes."post.logout.redirect.uris" -split "##") | Where-Object { $_ -and $_ -notmatch "trycloudflare\.com" }) + "$webUrl/*"
+# Se quitan túneles de demostraciones anteriores y se añade el actual, más la web local
+# (http://localhost:4173) para poder probar también desde esta laptop.
+$demoUris = @("$webUrl/*", "http://localhost:4173/*")
+$keep = { param($uri) $uri -and $uri -notmatch "trycloudflare\.com" -and $demoUris -notcontains $uri }
+$client.redirectUris = @($client.redirectUris | Where-Object { & $keep $_ }) + $demoUris
+$logout = @(($client.attributes."post.logout.redirect.uris" -split "##") | Where-Object { & $keep $_ }) + $demoUris
 $client.attributes."post.logout.redirect.uris" = ($logout -join "##")
 Invoke-RestMethod -Method Put -Uri "$api/$($client.id)" -Headers $headers -ContentType "application/json; charset=utf-8" `
     -Body ([System.Text.Encoding]::UTF8.GetBytes(($client | ConvertTo-Json -Depth 20))) | Out-Null
@@ -149,5 +151,6 @@ Wait-Url "http://localhost:4173" 60 "La web"
 Write-Host ""
 Write-Host "Listo. Abre desde cualquier dispositivo:" -ForegroundColor Green
 Write-Host "    $webUrl" -ForegroundColor Green
+Write-Host "(La dirección cambia en cada demo: las de demos anteriores ya no sirven.)"
 Write-Host "Usuarios demo: ana.quispe, sofia.ramirez, rosa.medina, carla.nunez (clave neurolab2026)."
 Write-Host "Para terminar: cierra las ventanas abiertas y ejecuta este script con -Detener."
