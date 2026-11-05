@@ -42,11 +42,13 @@ async def lifespan(_: FastAPI):
     settings.check_runtime()
     migrate()
     if settings.seed_demo:
-        from app.seed import seed
+        from app.seed import complement, seed
 
         with SessionLocal() as db:
             if seed(db):
                 logger.info("Base vacía: se cargaron los datos demo.")
+            elif added := complement(db):
+                logger.info("Datos demo completados: %s", "; ".join(added))
     if settings.auth_dev_bypass:
         logger.warning("Modo desarrollo: las peticiones sin token actúan como %s.", settings.dev_user_id)
     yield

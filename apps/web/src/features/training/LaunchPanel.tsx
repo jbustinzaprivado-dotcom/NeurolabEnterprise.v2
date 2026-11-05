@@ -90,6 +90,27 @@ function headHint(column: { kind: string; unique: number } | undefined, outputUn
   return `${matches === false ? '⚠ La arquitectura no encaja: ' : 'Se espera '}${expected}.`;
 }
 
+/** RNN y CNN leen cada fila como secuencia o imagen: avisa si las columnas no cuadran. */
+function shapeWarning(
+  shape: number[] | null | undefined,
+  columns: { name: string; kind: string }[] | undefined,
+  target: string,
+): string | undefined {
+  if (!shape || !columns) return undefined;
+  const expected = shape.reduce((total, size) => total * size, 1);
+  const label =
+    shape.length === 2 ? `secuencias de ${shape[0]} pasos × ${shape[1]} variables` : `imágenes de ${shape[0]}×${shape[1]}×${shape[2]}`;
+  const features = columns.filter((column) => column.name !== target);
+  const count = target ? features.length : columns.length - 1;
+  if (count !== expected) {
+    return `La arquitectura espera ${label} = ${expected} columnas numéricas además del objetivo; este dataset tiene ${count}.`;
+  }
+  if (target && features.some((column) => column.kind !== 'integer' && column.kind !== 'float')) {
+    return `Para ${label} todas las columnas deben ser numéricas.`;
+  }
+  return undefined;
+}
+
 export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = false, onChange, onLaunch }: LaunchPanelProps) {
   const launchable = projects.filter((item) => item.canLaunch);
   const project = launchable.find((item) => item.id === values.projectId);
@@ -207,6 +228,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
               id="tr-dataset"
               label="Dataset"
               error={issues.errors.dataset}
+              warning={shapeWarning(architecture?.inputShape, dataset?.columns, values.targetColumn)}
               hint={
                 project && project.datasets.length > 0
                   ? `${project.datasets.length} dataset${project.datasets.length === 1 ? '' : 's'} publicado${project.datasets.length === 1 ? '' : 's'} por M05.`

@@ -109,8 +109,10 @@ class Settings:
     rate_limit_per_minute: int = field(default_factory=lambda: int(_env("RATE_LIMIT_PER_MINUTE", "600")))
     login_attempts_per_minute: int = field(default_factory=lambda: int(_env("LOGIN_ATTEMPTS_PER_MINUTE", "10")))
     max_failed_logins: int = field(default_factory=lambda: int(_env("MAX_FAILED_LOGINS", "5")))
-    # §18: RNN, CNN y GAN se habilitan progresivamente para entrenamiento.
-    training_families: list[str] = field(default_factory=lambda: _env_list("TRAINING_FAMILIES", "FEEDFORWARD"))
+    # §18: las familias se habilitan a medida que tienen pruebas propias. GAN sigue solo documentada.
+    training_families: list[str] = field(
+        default_factory=lambda: _env_list("TRAINING_FAMILIES", "FEEDFORWARD,RNN,CNN")
+    )
 
     worker_poll_seconds: float = field(default_factory=lambda: float(_env("WORKER_POLL_SECONDS", "1.0")))
     worker_stale_seconds: int = field(default_factory=lambda: int(_env("WORKER_STALE_SECONDS", "120")))

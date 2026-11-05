@@ -45,7 +45,7 @@ Toda la configuración va en variables `NEUROLAB_*`, leídas del entorno o de `.
 | `NEUROLAB_CORS_ORIGINS` | `http://localhost:5173` | Dominio público de la web |
 | `NEUROLAB_API_PROXY` (solo `npm run dev`) | `http://localhost:8000` | — : en producción nginx hace de proxy |
 | `NEUROLAB_LOG_FORMAT` | `json` (`text` para leer en consola) | `json` |
-| `NEUROLAB_TRAINING_FAMILIES` | `FEEDFORWARD` | Se amplía cuando cada familia tenga sus pruebas |
+| `NEUROLAB_TRAINING_FAMILIES` | `FEEDFORWARD,RNN,CNN` | GAN queda fuera hasta tener sus pruebas |
 | `NEUROLAB_WORKER_STALE_SECONDS` | `120` | Ajustar si la base o la red tienen pausas largas |
 
 Los límites de uso (épocas, carga, duración, concurrencia, tasa, cuota, y núcleos de CPU, memoria y GPU por entrenamiento) tienen valores iniciales en variables (`NEUROLAB_MAX_JOB_CPU_THREADS=4`, `NEUROLAB_MAX_JOB_MEMORY_MB=4096`, `NEUROLAB_MAX_JOB_GPUS=0`, etc.) y luego se editan en **M10** sin reiniciar nada. La excepción es la GPU: TensorFlow la fija al arrancar, así que su cambio rige al reiniciar el worker.

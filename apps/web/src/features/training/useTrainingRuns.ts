@@ -146,6 +146,7 @@ export function useTrainingRuns(): TrainingModel {
               version: item.version,
               trainable: item.trainable,
               outputUnits: last?.type === 'Dense' ? last.units ?? null : null,
+              inputShape: item.family === 'RNN' || item.family === 'CNN' ? item.summary.inputShape : null,
             };
           }),
         datasets: catalog.datasets

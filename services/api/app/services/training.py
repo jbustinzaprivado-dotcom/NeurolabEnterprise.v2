@@ -43,6 +43,33 @@ def _check_quotas(db: Session, user_id: str, project_id: str) -> None:
         )
 
 
+def _check_input_shape(arch: Architecture, schema: list[dict], target: str) -> None:
+    """RNN y CNN leen cada fila como secuencia o imagen: el número de columnas debe cuadrar."""
+    spec = arch.config_json.get("input", {})
+    if arch.family == "RNN":
+        dims, label = (spec["timesteps"], spec["seqFeatures"]), "secuencias de {} pasos × {} variables"
+        hint = "columnas ordenadas por instante: t00_var1, t00_var2, t01_var1, …"
+    elif arch.family == "CNN":
+        dims, label = (spec["height"], spec["width"], spec["channels"]), "imágenes de {}×{} con {} canal(es)"
+        hint = "un píxel por columna, fila por fila: p000, p001, …"
+    else:
+        return
+    expected = 1
+    for size in dims:
+        expected *= int(size)
+    features = [col for col in schema if col["name"] != target]
+    shape = label.format(*dims)
+    if len(features) != expected:
+        raise _unprocessable(
+            f"La arquitectura espera {shape} = {expected} columnas además del objetivo, y el dataset tiene "
+            f"{len(features)}. Formato: {hint}"
+        )
+    text = [col["name"] for col in features if col["kind"] not in {"integer", "float"}]
+    if text:
+        listed = ", ".join(text[:5]) + ("…" if len(text) > 5 else "")
+        raise _unprocessable(f"Para {shape} todas las columnas deben ser numéricas; no lo son: {listed}.")
+
+
 def build_params(db: Session, project: Project, payload: TrainingJobIn, role: str) -> dict:
     """Valida todo lo que §10 exige antes de encolar y devuelve los parámetros congelados."""
     arch = db.get(Architecture, payload.architecture_id)
@@ -93,6 +120,7 @@ def build_params(db: Session, project: Project, payload: TrainingJobIn, role: st
             f"La capa de salida no corresponde al objetivo «{payload.target_column}»: "
             f"se esperaba {ds.expected_head(profile)}."
         )
+    _check_input_shape(arch, schema, payload.target_column)
 
     return {
         "epochs": payload.epochs,

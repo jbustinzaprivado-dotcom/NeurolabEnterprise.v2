@@ -13,7 +13,9 @@ NeuroLab Enterprise es una plataforma web donde un equipo diseña, entrena, eval
 | Identificar tipos: Feedforward, RNN, CNN y GAN | M04: selector de familia con capas permitidas por familia |
 | Crear una red con TensorFlow/Keras | M06 Entrenamientos: el worker compila y entrena el modelo |
 
-**MVP (§18):** se cumple con la familia Feedforward. RNN, CNN y GAN se pueden diseñar y validar, pero todavía no entrenar. Se habilitan con `NEUROLAB_TRAINING_FAMILIES` a medida que tengan sus propias pruebas.
+**MVP (§18):** se cumple con la familia Feedforward. RNN y CNN ya entrenan con pruebas propias (LSTM sobre `series-vibracion`, CNN sobre `imagenes-juntas`). La GAN se diseña y valida, pero no entrena. Las familias habilitadas se controlan con `NEUROLAB_TRAINING_FAMILIES`.
+
+**Entrada de RNN y CNN:** el CSV sigue siendo una fila por ejemplo. El worker normaliza cada columna con la partición de entrenamiento y reacomoda la fila en `(pasos, variables)` o `(alto, ancho, canales)` según la arquitectura. La API rechaza el lanzamiento si el número de columnas numéricas no es el producto de esa forma.
 
 ## 2. Roles y permisos (§4.2, §11)
 
@@ -171,7 +173,7 @@ stateDiagram-v2
 | SSE en lugar de WebSocket | El canal solo va del servidor al navegador; SSE reconecta solo y reanuda con `Last-Event-ID` |
 | Cola sobre la tabla `training_jobs` | Evita otro servicio (Redis o RabbitMQ). El reclamo condicional garantiza la exclusividad y el estado ya está persistido |
 | Latido en un hilo propio cada 5 s | Una época larga no hace que se crea caído a un worker vivo; si el proceso muere, otro worker cierra el trabajo a los 120 s |
-| Solo datasets CSV | Formato tabular universal y fácil de validar sin ejecutar nada. Otros formatos llegarán con las familias CNN y RNN |
+| Solo datasets CSV | Formato tabular universal y fácil de validar sin ejecutar nada. Secuencias e imágenes se aplanan en columnas (una por instante×variable o por píxel) |
 | Keycloak como proveedor de identidad | Código abierto, local, con OIDC estándar; se puede cambiar por otro proveedor OIDC sin tocar la API |
 | SeaweedFS como S3 en Docker y CI | MinIO dejó de publicar su imagen comunitaria; la API habla S3 estándar y funciona con cualquier proveedor |
 | Métricas de regresión R², RMSE y MAE | El documento pide "evaluación final" sin fijar métricas; estas se leen en las unidades del objetivo |

@@ -52,7 +52,16 @@ export interface ProjectOption {
   id: string;
   name: string;
   /** Solo arquitecturas guardadas en M04, con su versión. */
-  architectures: { id: string; name: string; family: NetworkFamily; version: number; trainable: boolean; outputUnits: number | null }[];
+  architectures: {
+    id: string;
+    name: string;
+    family: NetworkFamily;
+    version: number;
+    trainable: boolean;
+    outputUnits: number | null;
+    /** RNN: [pasos, variables]; CNN: [alto, ancho, canales]. Null en redes densas. */
+    inputShape: number[] | null;
+  }[];
   /** Versión vigente de cada dataset de M05 con su esquema verificado. */
   datasets: { id: string; name: string; version: number; columns: { name: string; kind: string; unique: number }[] }[];
   canLaunch: boolean;

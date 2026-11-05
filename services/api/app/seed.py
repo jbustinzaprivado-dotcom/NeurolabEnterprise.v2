@@ -24,7 +24,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, migrate
 from app.core.security import hash_password
 from app.core.storage import get_store
-from app.demo.catalog import PROJECTS, USERS, DemoProject
+from app.demo.catalog import PROJECTS, USERS, DemoArchitecture, DemoDataset, DemoProject
 from app.modules import state_machine as sm
 from app.modules.architecture import validate_architecture
 from app.modules.datasets import inspect_csv
@@ -53,6 +53,52 @@ def _initials(name: str) -> str:
     return (parts[0][0] + parts[1][0]).upper()
 
 
+def _new_dataset(db: Session, project_id: str, item: DemoDataset, owner: str, created: datetime) -> Dataset:
+    content = item.generator()
+    report = inspect_csv(content)
+    dataset = Dataset(
+        project_id=project_id, name=item.name, version=1, description=item.description,
+        original_filename=f"{item.name}.csv", storage_key="", size_bytes=len(content), rows=report.rows,
+        columns=report.columns, checksum=hashlib.sha256(content).hexdigest(), privacy=item.privacy,
+        tags=item.tags, license=item.license, split={"train": 0.7, "validation": 0.15, "test": 0.15},
+        metadata_json={"schema": report.schema, "warnings": report.warnings}, created_by=owner,
+        created_at=created,
+    )
+    db.add(dataset)
+    db.flush()
+    dataset.storage_key = f"uploads/{project_id}/{dataset.id}.csv"
+    get_store().put(dataset.storage_key, content, "text/csv")
+    return dataset
+
+
+def _arch_in(item: DemoArchitecture) -> ArchitectureIn:
+    return ArchitectureIn.model_validate({
+        "name": item.name, "family": item.family, "justification": item.justification,
+        "input": item.input, "layers": item.layers,
+    })
+
+
+def _arch_config(item: DemoArchitecture) -> dict:
+    return _arch_in(item).model_dump(mode="json", by_alias=True, exclude={"name", "justification"})
+
+
+def _new_architecture(
+    db: Session, project_id: str, item: DemoArchitecture, owner: str, created: datetime, version: int,
+) -> Architecture:
+    arch_in = _arch_in(item)
+    summary = validate_architecture(arch_in)
+    if not summary.valid:
+        raise ValueError(f"Arquitectura demo {item.name} no válida: {summary.issues}")
+    arch = Architecture(
+        project_id=project_id, name=arch_in.name, family=arch_in.family, version=version,
+        justification=arch_in.justification, config_json=_arch_config(item),
+        summary_json=summary.model_dump(mode="json", by_alias=True), created_by=owner, created_at=created,
+    )
+    db.add(arch)
+    db.flush()
+    return arch
+
+
 def _seed_project(db: Session, spec: DemoProject, with_history: bool) -> int:
     # Se crea activo para que el historial pase la validación (§10); el estado final va al cerrar.
     project = Project(
@@ -66,43 +112,11 @@ def _seed_project(db: Session, spec: DemoProject, with_history: bool) -> int:
     db.add(project)
     db.flush()
 
-    datasets: dict[str, Dataset] = {}
-    for item in spec.datasets:
-        content = item.generator()
-        report = inspect_csv(content)
-        dataset = Dataset(
-            project_id=project.id, name=item.name, version=1, description=item.description,
-            original_filename=f"{item.name}.csv", storage_key="", size_bytes=len(content), rows=report.rows,
-            columns=report.columns, checksum=hashlib.sha256(content).hexdigest(), privacy=item.privacy,
-            tags=item.tags, license=item.license, split={"train": 0.7, "validation": 0.15, "test": 0.15},
-            metadata_json={"schema": report.schema, "warnings": report.warnings}, created_by=spec.owner,
-            created_at=_at(spec.created),
-        )
-        db.add(dataset)
-        db.flush()
-        dataset.storage_key = f"uploads/{project.id}/{dataset.id}.csv"
-        get_store().put(dataset.storage_key, content, "text/csv")
-        datasets[item.name] = dataset
-
-    architectures: dict[str, Architecture] = {}
-    for item in spec.architectures:
-        arch_in = ArchitectureIn.model_validate({
-            "name": item.name, "family": item.family, "justification": item.justification,
-            "input": item.input, "layers": item.layers,
-        })
-        summary = validate_architecture(arch_in)
-        if not summary.valid:
-            raise ValueError(f"Arquitectura demo {item.name} no válida: {summary.issues}")
-        arch = Architecture(
-            project_id=project.id, name=arch_in.name, family=arch_in.family, version=1,
-            justification=arch_in.justification,
-            config_json=arch_in.model_dump(mode="json", by_alias=True, exclude={"name", "justification"}),
-            summary_json=summary.model_dump(mode="json", by_alias=True), created_by=spec.owner,
-            created_at=_at(spec.created),
-        )
-        db.add(arch)
-        db.flush()
-        architectures[item.name] = arch
+    datasets = {item.name: _new_dataset(db, project.id, item, spec.owner, _at(spec.created)) for item in spec.datasets}
+    architectures = {
+        item.name: _new_architecture(db, project.id, item, spec.owner, _at(spec.created), 1)
+        for item in spec.architectures
+    }
 
     queued = 0
     if with_history:
@@ -160,7 +174,45 @@ def seed(db: Session, with_history: bool | None = None) -> bool:
     return True
 
 
+def complement(db: Session) -> list[str]:
+    """En una base ya cargada, agrega lo que el catálogo demo trae de nuevo.
+
+    - Datasets demo que falten (por nombre) en proyectos demo existentes.
+    - Arquitecturas demo nuevas, o una versión nueva si su configuración cambió
+      (las versiones existentes no se modifican: son inmutables).
+    No toca nada creado por los usuarios ni proyectos que se hayan borrado.
+    """
+    added: list[str] = []
+    now = datetime.now().astimezone()
+    for spec in PROJECTS:
+        if db.get(Project, spec.id) is None:
+            continue
+        have = set(db.scalars(select(Dataset.name).where(Dataset.project_id == spec.id)))
+        for item in spec.datasets:
+            if item.name not in have:
+                _new_dataset(db, spec.id, item, spec.owner, now)
+                added.append(f"{spec.id}: dataset {item.name}")
+        for item in spec.architectures:
+            latest = db.scalar(
+                select(Architecture).where(Architecture.project_id == spec.id, Architecture.name == item.name)
+                .order_by(Architecture.version.desc()).limit(1)
+            )
+            if latest is not None and latest.config_json == _arch_config(item):
+                continue
+            version = 1 if latest is None else latest.version + 1
+            _new_architecture(db, spec.id, item, spec.owner, now, version)
+            added.append(f"{spec.id}: arquitectura {item.name} v{version}")
+    if added:
+        audit.record(db, "system", "seed.complement", "platform", "demo", None, agregados=added)
+    db.commit()
+    return added
+
+
 if __name__ == "__main__":
     migrate()
     with SessionLocal() as session:
-        print("Datos demo creados." if seed(session) else "La base ya tenía datos; no se modificó.")
+        if seed(session):
+            print("Datos demo creados.")
+        else:
+            nuevos = complement(session)
+            print("Datos demo completados: " + "; ".join(nuevos) if nuevos else "La base ya estaba al día.")

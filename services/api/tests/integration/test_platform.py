@@ -114,5 +114,5 @@ def test_admin_console(client):
 
 def test_config_and_dev_login_disabled_in_tests(client):
     config = client.get(f"{API}/config", headers=ANA).json()
-    assert config["trainingFamilies"] == ["FEEDFORWARD"] and config["devLogin"] is False
+    assert config["trainingFamilies"] == ["FEEDFORWARD", "RNN", "CNN"] and config["devLogin"] is False
     assert client.post(f"{API}/auth/dev-login", json={"userId": "USR-201"}).status_code == 404

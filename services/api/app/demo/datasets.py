@@ -161,3 +161,59 @@ def viviendas(n: int = 900) -> bytes:
         "estacionamiento": np.where(estacionamiento, "si", "no"),
         "precio_soles": precio.round(-2),
     }))
+
+
+def series_vibracion(n: int = 600, pasos: int = 30) -> bytes:
+    """Series de 30 lecturas (vibración y temperatura) por compresor; falla en las 48 h siguientes.
+
+    Formato para redes recurrentes (RNN): una fila por compresor con las columnas ordenadas
+    por instante (t00_vibracion, t00_temperatura, t01_vibracion, …). Lo que delata una falla
+    es la tendencia sostenida al alza en los últimos instantes, no el valor medio.
+    """
+    rng = np.random.default_rng(1020)
+    falla = rng.random(n) < 0.3
+    t = np.arange(pasos) / (pasos - 1)
+    base = rng.normal(2.0, 0.35, (n, 1))
+    # Los que fallan suben en la segunda mitad; el resto oscila alrededor de su nivel.
+    deriva = np.where(falla[:, None], np.clip(t - 0.5, 0, None) * rng.uniform(1.5, 2.8, (n, 1)), 0.0)
+    vibracion = base + deriva + rng.normal(0, 0.18, (n, pasos))
+    temperatura = 65 + 4 * (vibracion - 2.0) + rng.normal(0, 1.2, (n, pasos))
+    columns: dict[str, np.ndarray] = {}
+    for step in range(pasos):
+        columns[f"t{step:02d}_vibracion"] = vibracion[:, step].round(3)
+        columns[f"t{step:02d}_temperatura"] = temperatura[:, step].round(2)
+    frame = pd.DataFrame(columns)
+    frame["falla_48h"] = np.where(falla, "si", "no")
+    return _csv(frame)
+
+
+def imagenes_juntas(n: int = 800, lado: int = 16) -> bytes:
+    """Imágenes de 16×16 en escala de grises de juntas metálicas, en cuatro clases.
+
+    Formato para redes convolucionales (CNN): una fila por imagen con los píxeles en orden
+    de lectura (p000…p255). Cada defecto aparece en una posición distinta en cada imagen, así
+    que la red tiene que reconocer el patrón local y no un píxel fijo.
+    """
+    rng = np.random.default_rng(1260)
+    clases = np.array(["conforme", "porosidad", "fisura", "deformacion"])
+    etiquetas = rng.integers(0, 4, n)
+    imagenes = rng.normal(0.55, 0.06, (n, lado, lado))
+    yy, xx = np.mgrid[0:lado, 0:lado]
+    for i, clase in enumerate(etiquetas):
+        img = imagenes[i]
+        if clase == 1:  # porosidad: varios puntos oscuros pequeños
+            for _ in range(rng.integers(4, 8)):
+                y, x = rng.integers(1, lado - 1, 2)
+                img[y, x] -= 0.35
+        elif clase == 2:  # fisura: una línea oscura diagonal
+            y0, x0 = rng.integers(2, 6, 2)
+            largo = rng.integers(7, 11)
+            for k in range(largo):
+                img[min(lado - 1, y0 + k), min(lado - 1, x0 + k)] -= 0.4
+        elif clase == 3:  # deformación: una zona clara y extendida
+            cy, cx = rng.integers(4, lado - 4, 2)
+            img += 0.3 * np.exp(-((yy - cy) ** 2 + (xx - cx) ** 2) / 8.0)
+    imagenes = np.clip(imagenes, 0, 1)
+    frame = pd.DataFrame(imagenes.reshape(n, lado * lado).round(3), columns=[f"p{k:03d}" for k in range(lado * lado)])
+    frame["clase"] = clases[etiquetas]
+    return _csv(frame)

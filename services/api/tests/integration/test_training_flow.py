@@ -132,11 +132,19 @@ def test_launch_validation(client, iris):
     assert launch(client, iris, headers=ROSA).status_code == 403  # reviewer no entrena
     assert launch(client, iris, headers=DIEGO).status_code == 404  # ajeno al proyecto
 
+    # Iris tiene 4 columnas: una secuencia de 5 pasos × 1 variable no cuadra.
     rnn = client.post(f"{API}/projects/PRJ-101/architectures", headers=ANA, json={
-        "name": "lstm-prueba", "family": "RNN", "input": {"timesteps": 4, "seqFeatures": 1},
+        "name": "lstm-prueba", "family": "RNN", "input": {"timesteps": 5, "seqFeatures": 1},
         "layers": [{"type": "LSTM", "units": 4}, {"type": "Dense", "units": 3, "activation": "softmax"}],
     }).json()
-    disabled = launch(client, iris, architectureId=rnn["id"])
+    mismatch = launch(client, iris, architectureId=rnn["id"])
+    assert mismatch.status_code == 422 and "5 columnas" in mismatch.json()["detail"]
+
+    gan = client.post(f"{API}/projects/PRJ-101/architectures", headers=ANA, json={
+        "name": "gan-prueba", "family": "GAN", "input": {"latent": 8},
+        "layers": [{"type": "Dense", "units": 16}, {"type": "Dense", "units": 3, "activation": "softmax"}],
+    }).json()
+    disabled = launch(client, iris, architectureId=gan["id"])
     assert disabled.status_code == 422 and "aún no habilitada" in disabled.json()["detail"]
 
 

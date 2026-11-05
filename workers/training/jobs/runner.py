@@ -32,7 +32,7 @@ from app.services import audit, job_events, platform_settings
 from workers.training.callbacks.progress import ProgressCallback
 from workers.training.jobs.resources import CpuPinning, memory_mb, read_limits, total_cores
 from workers.training.pipelines.model_builder import build_model
-from workers.training.pipelines.tabular import PreparedData, prepare
+from workers.training.pipelines.tabular import PreparedData, describe_shape, input_shape_for, prepare
 
 logger = logging.getLogger("neurolab.worker")
 
@@ -241,6 +241,7 @@ def _register(job_id: str, model: keras.Model, data: PreparedData, evaluation: d
             "codeVersion": job.code_version,
             "kerasVersion": keras.__version__,
             "inputColumns": data.input_columns,
+            "inputShape": list(data.input_shape),
             "features": data.feature_names,
             "droppedColumns": data.dropped,
             "classes": data.classes,
@@ -308,7 +309,8 @@ def _run(job_id: str, worker_id: str) -> str:
         except ObjectNotFound as exc:
             raise ControlledError("El archivo del dataset no está en el almacenamiento.") from exc
         try:
-            data = prepare(read_csv_bytes(content), target, params["task"], split, params["seed"])
+            shape = input_shape_for(config)
+            data = prepare(read_csv_bytes(content), target, params["task"], split, params["seed"], shape)
         except ValueError as exc:
             raise ControlledError(f"Preprocesamiento: {exc}") from exc
         if params["task"] == "classification" and len(data.classes) != params["classes"]:
@@ -317,16 +319,17 @@ def _run(job_id: str, worker_id: str) -> str:
             )
 
         keras.utils.set_random_seed(params["seed"])
-        model = build_model(config, (data.input_dim,), params["task"], params["optimizer"], params["learningRate"])
+        model = build_model(config, data.input_shape, params["task"], params["optimizer"], params["learningRate"])
 
         with SessionLocal() as db:
             job = db.get(TrainingJob, job_id)
             notes = [
                 f"Particiones: {len(data.y_train)} entrenamiento · {len(data.y_val)} validación · {len(data.y_test)} prueba.",
-                f"{data.input_dim} características de entrada; {model.count_params():,} parámetros.",
+                (f"Entrada: {describe_shape(shape)}" if shape else f"{data.input_dim} características de entrada")
+                + f"; {model.count_params():,} parámetros.",
             ]
             declared = config.get("input", {}).get("features")
-            if declared and declared != data.input_dim:
+            if not shape and declared and declared != data.input_dim:
                 notes.append(f"Entrada ajustada de {declared} a {data.input_dim} según las columnas del dataset.")
             if data.dropped:
                 notes.append(f"Columnas descartadas: {', '.join(data.dropped)}.")

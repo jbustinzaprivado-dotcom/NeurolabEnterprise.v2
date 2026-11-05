@@ -86,7 +86,16 @@ El botón **Diseñar una arquitectura** lleva al M04.
 
 La vista previa dibuja neuronas y conexiones. En **Modo conectar** puedes trazar conexiones a mano entre capas adyacentes.
 
-**Hoy solo se entrenan las redes Feedforward.** Las demás familias se diseñan y validan, y se habilitarán más adelante (§18).
+**Familias que se entrenan:** Feedforward, Recurrente (LSTM/GRU) y Convolucional. La GAN se diseña y valida, pero aún no se entrena (§18).
+
+**Formato del CSV para RNN y CNN.** Siguen siendo tablas de una fila por ejemplo, con la columna objetivo y el resto numéricas:
+
+| Familia | Columnas | Ejemplo demo |
+|---|---|---|
+| RNN | Una por instante y variable, en orden de tiempo: `t00_vibracion, t00_temperatura, t01_vibracion, …`. Total = pasos × variables | `series-vibracion` (PRJ-102): 30 pasos × 2 variables = 60 columnas |
+| CNN | Un píxel por columna, fila por fila: `p000, p001, …`. Total = alto × ancho × canales | `imagenes-juntas` (PRJ-126): 16 × 16 × 1 = 256 columnas |
+
+Si el número de columnas no cuadra con la entrada de la arquitectura, M06 lo avisa antes de encolar.
 
 ## M05 · Datasets
 

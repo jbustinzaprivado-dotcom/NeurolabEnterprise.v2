@@ -124,11 +124,17 @@ PROJECTS: list[DemoProject] = [
         tags=["series", "mantenimiento"],
         members=[("USR-223", "owner", "2026-08-10T08:00:00Z"), ("USR-236", "engineer", "2026-08-12T09:00:00Z"),
                  ("USR-244", "reviewer", "2026-08-15T10:00:00Z")],
-        datasets=[DemoDataset("vibracion-compresores", "Lecturas resumidas por compresor y falla en las 48 h siguientes.",
-                              data.vibracion_compresores, SYNTHETIC, ["sensores", "mantenimiento"])],
+        datasets=[
+            DemoDataset("vibracion-compresores", "Lecturas resumidas por compresor y falla en las 48 h siguientes.",
+                        data.vibracion_compresores, SYNTHETIC, ["sensores", "mantenimiento"]),
+            DemoDataset("series-vibracion", "30 lecturas consecutivas de vibración y temperatura por compresor "
+                        "(formato secuencia para RNN: columnas tNN_vibracion, tNN_temperatura).",
+                        data.series_vibracion, SYNTHETIC, ["sensores", "series", "secuencias"]),
+        ],
         architectures=[
-            DemoArchitecture("lstm-vibracion", "RNN", "Las fallas dependen de la evolución temporal de la vibración.",
-                             {"timesteps": 50, "seqFeatures": 6},
+            DemoArchitecture("lstm-vibracion", "RNN", "Las fallas dependen de la evolución temporal de la vibración: "
+                             "una LSTM lee los 30 instantes en orden.",
+                             {"timesteps": 30, "seqFeatures": 2},
                              [{"type": "LSTM", "units": 32, "activation": "tanh"}, dense(1, "sigmoid")]),
             DemoArchitecture("ff-vibracion-base", "FEEDFORWARD",
                              "Línea base densa sobre lecturas resumidas mientras se habilita la familia RNN (§18).",
@@ -211,12 +217,15 @@ PROJECTS: list[DemoProject] = [
              "línea. El modelo corre en el servidor de planta y no puede enviar imágenes fuera de la red industrial.",
              "USR-212", "2026-10-27T11:45:00Z"),
         ],
+        datasets=[DemoDataset("imagenes-juntas", "Imágenes de 16×16 en escala de grises de juntas en cuatro clases "
+                              "(formato imagen para CNN: columnas p000…p255).",
+                              data.imagenes_juntas, SYNTHETIC, ["imagenes", "calidad"])],
         architectures=[DemoArchitecture(
-            "cnn-juntas", "CNN", "Filtros convolucionales para defectos locales en imágenes de 64×64.",
-            {"height": 64, "width": 64, "channels": 1},
+            "cnn-juntas", "CNN", "Filtros convolucionales para defectos locales (puntos, líneas, zonas) en imágenes de 16×16.",
+            {"height": 16, "width": 16, "channels": 1},
             [{"type": "Conv2D", "filters": 16, "kernelSize": 3, "activation": "relu"}, {"type": "MaxPooling2D", "poolSize": 2},
              {"type": "Conv2D", "filters": 32, "kernelSize": 3, "activation": "relu"}, {"type": "MaxPooling2D", "poolSize": 2},
-             {"type": "Flatten"}, dense(64), dense(4, "softmax")])],
+             {"type": "Flatten"}, dense(32), dense(4, "softmax")])],
     ),
     DemoProject(
         id="PRJ-131", name="Síntesis de datos tabulares", family="GAN", status="DRAFT",
