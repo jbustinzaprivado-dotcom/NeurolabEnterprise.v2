@@ -70,12 +70,12 @@ Para mostrar el sistema desde otro dispositivo durante una sesión, sin desplega
    winget install --id Cloudflare.cloudflared
    ```
 2. Cierra las ventanas de `run.bat` (Keycloak, API, worker y web).
-3. Ejecuta:
+3. Haz doble clic en **`demo.bat`**, en la raíz del proyecto. Desde una terminal, es lo mismo que:
    ```
    powershell -ExecutionPolicy Bypass -File infra\demo\exponer.ps1
    ```
    El script abre dos túneles gratuitos de Cloudflare (`*.trycloudflare.com`, sin cuenta) y arranca Keycloak, la API, el worker y la web con esas direcciones. Al terminar muestra la dirección **HTTPS** para abrir desde el teléfono u otro equipo.
-4. Para terminar, cierra las ventanas y ejecuta el script con `-Detener`. Después, `run.bat` vuelve al modo local.
+4. Para terminar, cierra las ventanas y haz doble clic en **`demo-detener.bat`** (o ejecuta el script con `-Detener`). Después, `run.bat` vuelve al modo local.
 
 **Límites:**
 - Las direcciones cambian en cada ejecución.
