@@ -245,7 +245,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
               }
               hint={
                 project && project.architectures.length > 0
-                  ? `${project.architectures.length} versión${project.architectures.length === 1 ? '' : 'es'} guardada${project.architectures.length === 1 ? '' : 's'} en ${project.id}.`
+                  ? `${project.architectures.length} ${project.architectures.length === 1 ? 'versión guardada' : 'versiones guardadas'} en ${project.id}.`
                   : undefined
               }
             >
