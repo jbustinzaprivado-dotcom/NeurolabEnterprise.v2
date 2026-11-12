@@ -1,5 +1,6 @@
 """Flujo end-to-end del MVP (§18) con TensorFlow real, cancelación y registro de modelos."""
 
+import hashlib
 import io
 import zipfile
 
@@ -88,8 +89,16 @@ def test_versions_are_immutable_and_reviewed(client, iris):
 
     download = client.get(f"{API}/models/{latest['id']}/download", headers=ROSA)
     assert download.status_code == 200
-    names = set(zipfile.ZipFile(io.BytesIO(download.content)).namelist())
-    assert names == {"model.keras", "preprocessor.pkl", "metadata.json"}
+    bundle = zipfile.ZipFile(io.BytesIO(download.content))
+    names = set(bundle.namelist())
+    assert names == {"model.keras", "preprocessor.pkl", "metadata.json", "HUELLA.txt"}
+    # La huella registrada se recalcula con el contenido del ZIP, sin HUELLA.txt.
+    digest = hashlib.sha256()
+    for name in sorted(names - {"HUELLA.txt"}):
+        digest.update(name.encode())
+        digest.update(bundle.read(name))
+    note = bundle.read("HUELLA.txt").decode()
+    assert digest.hexdigest() in note
     assert client.get(f"{API}/models/{latest['id']}/download", headers=CARLA).status_code == 403
 
 

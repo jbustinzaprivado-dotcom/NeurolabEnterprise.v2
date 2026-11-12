@@ -252,7 +252,7 @@ export function RunDetail({
           ) : (
             <Stat label="val accuracy" value={lastPoint ? formatRate(lastPoint.valAccuracy) : job.epoch > 0 ? formatRate(job.valAccuracy) : '—'} />
           )}
-          <Stat label="época/seg" value={perEpoch !== null ? formatNumber(perEpoch, 1) : '—'} />
+          <Stat label="seg/época" value={perEpoch !== null ? formatNumber(perEpoch, 1) : '—'} />
           <Stat label="duración" value={job.durationSeconds > 0 ? formatDuration(job.durationSeconds) : '—'} />
         </div>
 

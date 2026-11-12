@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import zipfile
 
@@ -18,6 +19,37 @@ from app.services import audit
 from app.services.serializers import model_out
 
 router = APIRouter(tags=["models"])
+
+HASH_FILE = "HUELLA.txt"
+
+
+def _hash_note(model: ModelVersion, files: dict[str, bytes]) -> str:
+    """Explica qué cubre la huella registrada y cómo comprobarla con el contenido del ZIP.
+
+    La huella del modelo se calcula sobre los artefactos (nombre y contenido de cada archivo, en
+    orden alfabético), no sobre el ZIP: el ZIP se arma en cada descarga y su propia huella cambia.
+    """
+    lines = [
+        f"NeuroLab Enterprise · {model.name} v{model.version}",
+        "",
+        f"Huella registrada (SHA-256): {model.checksum}",
+        "",
+        "Cubre los archivos del modelo, no el ZIP: se calcula concatenando, en orden alfabético,",
+        "el nombre y el contenido de cada archivo. El ZIP se arma en cada descarga, así que su",
+        "propia huella cambia; la de su contenido, no.",
+        "",
+        "Huella de cada archivo (SHA-256):",
+        *(f"  {hashlib.sha256(content).hexdigest()}  {name}" for name, content in sorted(files.items())),
+        "",
+        "Para comprobarla, descomprime el ZIP en una carpeta y ejecuta en ella:",
+        "",
+        "  python -c \"import hashlib,pathlib; h=hashlib.sha256(); "
+        f"[(h.update(p.name.encode()), h.update(p.read_bytes())) for p in sorted(pathlib.Path('.').iterdir()) if p.name != '{HASH_FILE}']; "
+        "print(h.hexdigest())\"",
+        "",
+        "Debe imprimir la huella registrada.",
+    ]
+    return "\n".join(lines) + "\n"
 
 # Ciclo de revisión: borrador → revisado → aprobado; cualquiera puede retirarse.
 MODEL_TRANSITIONS = {
@@ -81,10 +113,12 @@ def download(model_id: str, user: CurrentUser, db: DB) -> StreamingResponse:
     if not keys:
         raise HTTPException(status.HTTP_410_GONE, "Los artefactos del modelo no están disponibles.")
 
+    files = {key.rsplit("/", 1)[-1]: store.get(key) for key in keys}
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for key in keys:
-            archive.writestr(key.rsplit("/", 1)[-1], store.get(key))
+        for name, content in files.items():
+            archive.writestr(name, content)
+        archive.writestr(HASH_FILE, _hash_note(model, files))
     buffer.seek(0)
     audit.record(db, user.id, "model.download", "model_version", model.id, model.project_id, version=model.version)
     db.commit()

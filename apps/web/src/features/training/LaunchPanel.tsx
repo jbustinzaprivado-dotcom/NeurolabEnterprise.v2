@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Actor } from '@/types/domain';
+import type { Actor, TrainingJob } from '@/types/domain';
 import { familyMeta } from '@/lib/nav';
 import { formatDuration, formatNumber } from '@/lib/format';
 import { Panel } from '@/components/ui/Panel';
@@ -61,6 +61,8 @@ interface LaunchPanelProps {
   busy?: boolean;
   onChange: (patch: Partial<LaunchValues>) => void;
   onLaunch: () => void;
+  /** Entrenamientos visibles: su duración real afina la estimación de tiempo. */
+  history?: TrainingJob[];
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -124,7 +126,7 @@ const FIELD_KEYS: Record<string, string> = {
   'tr-priority': 'priority',
 };
 
-export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = false, onChange, onLaunch }: LaunchPanelProps) {
+export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = false, onChange, onLaunch, history = [] }: LaunchPanelProps) {
   const launchable = projects.filter((item) => item.canLaunch);
   const project = launchable.find((item) => item.id === values.projectId);
   const architecture = project?.architectures.find((item) => item.id === values.architecture) ?? null;
@@ -137,7 +139,7 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
   const epochs = Number(values.epochs.replace(',', '.'));
   const batch = Number(values.batch.replace(',', '.'));
   const preview = architecture && Number.isFinite(epochs) && Number.isFinite(batch)
-    ? estimate(architecture.family, batch, epochs)
+    ? estimate({ family: architecture.family, architectureName: architecture.name, projectId: values.projectId }, batch, epochs, history)
     : null;
 
   const blocked = Object.keys(issues.errors).length > 0 || !project || Boolean(architecture && !architecture.trainable) || busy;
@@ -488,6 +490,11 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
               Seleccione arquitectura y escriba épocas y lote válidos para calcular el coste.
             </p>
           )}
+          {preview ? (
+            <p className="tr-forecast__basis">
+              Estimación {preview.basis.startsWith('según') ? '' : 'con '}{preview.basis}.
+            </p>
+          ) : null}
           {preview?.overLimit ? (
             <p className="tr-form__notice" data-tone="error">
               <Icon name="alertTriangle" size={14} />

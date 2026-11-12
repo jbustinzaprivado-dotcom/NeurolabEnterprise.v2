@@ -227,6 +227,7 @@ export function TrainingPage() {
                 busy={launching}
                 onChange={patch}
                 onLaunch={() => void onLaunch()}
+                history={run.jobs}
               />
 
               <QueuePanel

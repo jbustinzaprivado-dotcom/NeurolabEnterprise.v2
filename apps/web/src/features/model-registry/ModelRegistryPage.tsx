@@ -355,7 +355,7 @@ export function ModelRegistryPage() {
                   </div>
                   <div>
                     <dt>Checksum SHA-256</dt>
-                    <dd className="u-mono" title={selected.checksum}>
+                    <dd className="u-mono" title={`${selected.checksum}\nCubre los archivos del modelo, no el ZIP: el ZIP se arma en cada descarga. Dentro va HUELLA.txt con la forma de comprobarla.`}>
                       {selected.checksum.slice(0, 16)}…{selected.checksum.slice(-8)}
                     </dd>
                   </div>
@@ -429,6 +429,11 @@ export function ModelRegistryPage() {
                 <p className="panel__note">
                   Cada cambio de estado y cada descarga quedan en la auditoría (M10) con actor, fecha y
                   nota.
+                </p>
+                <p className="panel__note">
+                  El checksum cubre los archivos del modelo, no el ZIP: el ZIP se arma en cada descarga y su propia
+                  huella cambia. Dentro va <span className="u-mono">HUELLA.txt</span> con la huella de cada archivo y
+                  cómo comprobar la total.
                 </p>
               </Panel>
             ) : (

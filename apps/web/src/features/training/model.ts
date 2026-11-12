@@ -126,13 +126,17 @@ export const LIMITS = {
   maxGpuHours: 24,
 };
 
-/** Segundos estimados por época según la familia; el lote los escala. */
+/** Segundos por época con lote 64 cuando aún no hay historial. Medidos con los datasets demo
+    en un worker de CPU; el historial real del proyecto reemplaza estos valores en cuanto existe. */
 const FAMILY_EPOCH_SECONDS: Record<NetworkFamily, number> = {
-  FEEDFORWARD: 0.2,
-  RNN: 3.2,
-  CNN: 4.4,
-  GAN: 6.1,
+  FEEDFORWARD: 0.25,
+  RNN: 1.0,
+  CNN: 0.8,
+  GAN: 1.5,
 };
+
+/** Un lote más chico da más pasos por época: el tiempo crece de forma sublineal. */
+const batchFactor = (fromBatch: number, toBatch: number) => Math.pow(Math.max(1, fromBatch) / Math.max(1, toBatch), 0.45);
 
 /* --------------------------------------------------------------------- permisos */
 
@@ -275,15 +279,59 @@ export interface Estimate {
   totalSeconds: number;
   gpuHours: number;
   overLimit: boolean;
+  /** De dónde sale la cifra, para mostrarlo junto a ella. */
+  basis: string;
 }
 
-/** Orden de magnitud previo al lanzamiento; la duración real la publica el worker. */
-export function estimate(family: NetworkFamily, batch: number, epochs: number): Estimate {
-  const scale = Math.pow(64 / Math.max(1, batch), 0.45);
-  const epochSeconds = Math.max(0.1, Math.round(FAMILY_EPOCH_SECONDS[family] * scale * 10) / 10);
+/** Qué se va a entrenar, para buscar ejecuciones comparables en el historial. */
+export interface EstimateTarget {
+  family: NetworkFamily;
+  architectureName?: string;
+  projectId?: string;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/** Segundos por época medidos en un trabajo terminado, llevados al lote que se va a usar. */
+function measuredPace(job: TrainingJob, batch: number): number | null {
+  if (job.epoch <= 0 || job.durationSeconds <= 0 || !['COMPLETED', 'CANCELLED'].includes(job.status)) return null;
+  return (job.durationSeconds / job.epoch) * batchFactor(job.batch, batch);
+}
+
+/**
+ * Ritmo esperado antes de lanzar. Usa, en este orden: entrenamientos anteriores de la misma
+ * arquitectura en el proyecto, de la misma familia, o un valor de referencia. La duración real
+ * la publica el worker época a época.
+ */
+export function estimate(target: EstimateTarget, batch: number, epochs: number, history: TrainingJob[] = []): Estimate {
+  const sameArchitecture = history.filter(
+    (job) => job.projectId === target.projectId && job.architectureName === target.architectureName,
+  );
+  const sameFamily = history.filter((job) => job.family === target.family);
+  const paces = (jobs: TrainingJob[]) => jobs.map((job) => measuredPace(job, batch)).filter((v): v is number => v !== null);
+
+  let raw: number;
+  let basis: string;
+  const own = paces(sameArchitecture);
+  const family = paces(sameFamily);
+  if (own.length) {
+    raw = median(own);
+    basis = `según ${own.length} entrenamiento${own.length === 1 ? '' : 's'} anterior${own.length === 1 ? '' : 'es'} de esta arquitectura`;
+  } else if (family.length) {
+    raw = median(family);
+    basis = `según ${family.length} entrenamiento${family.length === 1 ? '' : 's'} de la misma familia`;
+  } else {
+    raw = FAMILY_EPOCH_SECONDS[target.family] * batchFactor(64, batch);
+    basis = 'valor de referencia: aún no hay entrenamientos comparables';
+  }
+  const epochSeconds = Math.max(0.1, Math.round(raw * 10) / 10);
   const totalSeconds = epochSeconds * Math.max(1, epochs);
   const gpuHours = totalSeconds / 3600;
-  return { epochSeconds, totalSeconds, gpuHours, overLimit: gpuHours > LIMITS.maxGpuHours };
+  return { epochSeconds, totalSeconds, gpuHours, overLimit: gpuHours > LIMITS.maxGpuHours, basis };
 }
 
 /* ---------------------------------------------------------------- acciones (RN-02) */

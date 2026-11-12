@@ -59,6 +59,22 @@
   min-width: 0;
 }
 
+/* En pantallas angostas, las acciones del encabezado (filtros, chips, botones) bajan a su
+   propia línea y se parten si no caben, en lugar de ensanchar la página. */
+@media (max-width: 640px) {
+  .panel__head {
+    flex-wrap: wrap;
+  }
+  .panel__actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .panel__actions .filters {
+    flex-wrap: wrap;
+  }
+}
+
 .panel__body--tight {
   padding: 0;
 }

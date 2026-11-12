@@ -183,12 +183,17 @@ export function useTrainingRuns(): TrainingModel {
         });
         await load();
         refreshPlatform();
-        const pace = estimate(job.family, job.batch, job.epochs);
+        const pace = estimate(
+          { family: job.family, architectureName: job.architectureName, projectId: job.projectId },
+          job.batch,
+          job.epochs,
+          jobs,
+        );
         return {
           ok: true,
           tone: 'success',
           jobId: job.id,
-          message: `${job.id} encolado · ${job.epochs} épocas · objetivo «${job.targetColumn}» · ~${formatNumber(pace.epochSeconds, 1)} s por época. ${
+          message: `${job.id} encolado · ${job.epochs} épocas · objetivo «${job.targetColumn}» · ~${formatNumber(pace.epochSeconds, 1)} s por época (${pace.basis}). ${
             online === 0 ? 'No hay workers en línea: el trabajo espera hasta que arranque uno.' : 'El worker lo tomará en cuanto quede libre.'
           }`,
         };
@@ -196,7 +201,7 @@ export function useTrainingRuns(): TrainingModel {
         return failure(caught);
       }
     },
-    [actor, actorFor, limits.epochs, limits.batch, load, refreshPlatform, online],
+    [actor, actorFor, limits.epochs, limits.batch, load, refreshPlatform, online, jobs],
   );
 
   const cancel = useCallback(
