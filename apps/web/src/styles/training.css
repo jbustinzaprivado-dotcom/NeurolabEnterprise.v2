@@ -187,6 +187,11 @@
   font-size: var(--fs-xs);
 }
 
+.tr-range {
+  width: 100%;
+  accent-color: var(--brand);
+}
+
 select.tr-input {
   padding-right: 6px;
 }

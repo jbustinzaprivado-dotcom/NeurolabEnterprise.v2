@@ -195,6 +195,18 @@ export function RunDetail({
             <em>Semilla</em>
             <strong className="u-num">{record.seed}</strong>
           </span>
+          {job.task === 'classification' && record.classWeight ? (
+            <span className="tr-param">
+              <em>Peso de clases</em>
+              <strong>{record.classWeight === 'balanced' ? 'Balanceado' : 'Igual'}</strong>
+            </span>
+          ) : null}
+          {record.threshold != null ? (
+            <span className="tr-param">
+              <em>Umbral</em>
+              <strong className="u-num">{Math.round(record.threshold * 100)} %</strong>
+            </span>
+          ) : null}
           <span className="tr-param">
             <em>Responsable</em>
             <strong>{job.owner}</strong>

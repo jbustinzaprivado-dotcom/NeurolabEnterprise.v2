@@ -180,6 +180,8 @@ export function useTrainingRuns(): TrainingModel {
           learningRate: toNumber(values.learningRate),
           seed: Math.round(toNumber(values.seed)),
           priority: values.priority,
+          classWeight: values.classWeight,
+          threshold: Number(values.threshold),
         });
         await load();
         refreshPlatform();

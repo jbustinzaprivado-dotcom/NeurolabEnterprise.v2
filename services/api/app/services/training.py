@@ -131,6 +131,9 @@ def build_params(db: Session, project: Project, payload: TrainingJobIn, role: st
         "seed": payload.seed,
         "task": profile["task"],
         "classes": profile["classes"],
+        "classWeight": payload.class_weight if profile["task"] == "classification" else "none",
+        # El umbral solo tiene sentido con dos clases: hay una clase positiva que avisar.
+        "threshold": payload.threshold if profile["task"] == "classification" and profile["classes"] == 2 else None,
         "datasetVersion": dataset.version,
         "architectureVersion": arch.version,
     }

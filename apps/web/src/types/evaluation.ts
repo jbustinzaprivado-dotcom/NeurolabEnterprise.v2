@@ -94,6 +94,16 @@ export interface EvaluationRun {
   classes?: EvaluationClass[];
   history: EpochMetrics[];
   tone: RunTone;
+  /** Clasificación: peso de clases con que se entrenó. */
+  classWeight?: 'none' | 'balanced';
+  /** Solo en clasificación binaria: umbral entrenado, clase positiva y [real, probabilidad] por fila. */
+  binary?: BinaryEvaluation | null;
+}
+
+export interface BinaryEvaluation {
+  threshold: number;
+  positiveClass: string;
+  scores: [number, number][];
 }
 
 export interface Observation {

@@ -12,6 +12,7 @@ import { Chip, StatusChip } from '@/components/ui/Chip';
 import { Sparkline } from '@/components/ui/DataViz';
 import { LearningChart } from '@/features/evaluation/LearningChart';
 import { ConfusionMatrix } from '@/features/evaluation/ConfusionMatrix';
+import { ThresholdExplorer, confusionAt } from '@/features/evaluation/ThresholdExplorer';
 import { ClassMetrics } from '@/features/evaluation/ClassMetrics';
 import { ComparisonTable } from '@/features/evaluation/ComparisonTable';
 import { ObservationLog } from '@/features/evaluation/ObservationLog';
@@ -98,6 +99,16 @@ export function EvaluationPage() {
   );
 
   const current = runs.find((run) => run.id === runId) ?? runs[0] ?? null;
+  /* Umbral explorado por ejecución binaria: la matriz y las métricas lo siguen sin reentrenar. */
+  const [cutByRun, setCutByRun] = useState<Record<string, number>>({});
+  const binary = current?.binary ?? null;
+  const cut = current && binary ? cutByRun[current.id] ?? binary.threshold : null;
+  const viewed = useMemo(
+    () => (current && binary && cut !== null && Math.abs(cut - binary.threshold) > 1e-9
+      ? { ...current, confusion: confusionAt(binary.scores, cut) }
+      : current),
+    [current, binary, cut],
+  );
   const regression = current?.task === 'regression';
   /* Solo se comparan ejecuciones de la misma tarea: accuracy y R² no se miden en la misma escala. */
   const peers = useMemo(() => runs.filter((run) => run.task === current?.task), [runs, current]);
@@ -112,8 +123,8 @@ export function EvaluationPage() {
   const activeMetric: EvaluationMetric = chartMetrics.includes(metric) ? metric : 'loss';
 
   const { perClass, summary } = useMemo(
-    () => metricsFromConfusion(current && !regression && current.confusion.length ? current.confusion : [[0]]),
-    [current, regression],
+    () => metricsFromConfusion(viewed && !regression && viewed.confusion.length ? viewed.confusion : [[0]]),
+    [viewed, regression],
   );
   const previousSummary = useMemo(
     () => (previous && !regression ? metricsFromConfusion(previous.confusion).summary : null),
@@ -506,7 +517,15 @@ export function EvaluationPage() {
                 </>
               }
             >
-              <ConfusionMatrix run={current} normalized={normalized} />
+              {binary && cut !== null ? (
+                <ThresholdExplorer
+                  binary={binary}
+                  negativeClass={current.classes?.[0]?.label ?? 'no'}
+                  cut={cut}
+                  onChange={(next) => setCutByRun((prev) => ({ ...prev, [current.id]: next }))}
+                />
+              ) : null}
+              <ConfusionMatrix run={viewed ?? current} normalized={normalized} />
               <p className="panel__note">
                 Fila = clase real; columna = clase predicha. El porcentaje se calcula sobre el
                 soporte de la fila. La partición de prueba no participó en el entrenamiento ni en la
@@ -601,7 +620,7 @@ export function EvaluationPage() {
               icon="layers"
               actions={<Chip tone="outline">macro F1 {formatRate(summary.f1)}</Chip>}
             >
-              <ClassMetrics run={current} />
+              <ClassMetrics run={viewed ?? current} />
             </Panel>
             )}
           </div>

@@ -147,7 +147,22 @@ def _latency_p95_ms(model: keras.Model, data: PreparedData, samples: int = 40) -
     return float(np.percentile(timings, 95))
 
 
-def _evaluate(model: keras.Model, data: PreparedData, task: str) -> dict:
+def _class_weights(y_train: np.ndarray, classes: int) -> dict[int, float]:
+    """Pesos «balanceados»: cada clase pesa en proporción inversa a su frecuencia.
+
+    Con 25 % de «sí», equivocarse con un «sí» pesa unas 3 veces más que con un «no»: la red deja
+    de ganar puntos respondiendo siempre la clase mayoritaria.
+    """
+    counts = np.bincount(y_train.astype(int), minlength=classes)
+    return {c: float(len(y_train) / (classes * n)) if n else 0.0 for c, n in enumerate(counts)}
+
+
+def _positive_scores(predictions: np.ndarray) -> np.ndarray:
+    """Probabilidad de la clase positiva (la segunda) en clasificación binaria."""
+    return predictions.reshape(-1) if predictions.shape[1] == 1 else predictions[:, 1]
+
+
+def _evaluate(model: keras.Model, data: PreparedData, task: str, threshold: float | None = None) -> dict:
     scores = model.evaluate(data.x_test, data.y_test, verbose=0, return_dict=True)
     result: dict = {
         "task": task,
@@ -164,8 +179,17 @@ def _evaluate(model: keras.Model, data: PreparedData, task: str) -> dict:
         })
         return result
 
-    if predictions.shape[1] == 1:
-        predicted = (predictions.reshape(-1) >= 0.5).astype(int)
+    binary = len(data.classes) == 2
+    if binary:
+        cut = 0.5 if threshold is None else threshold
+        scores = _positive_scores(predictions)
+        predicted = (scores >= cut).astype(int)
+        # Real y probabilidad de cada fila de prueba: M07 recalcula la matriz con otro umbral sin reentrenar.
+        result["binary"] = {
+            "threshold": cut,
+            "positiveClass": data.classes[1],
+            "scores": [[int(real), round(float(score), 4)] for real, score in zip(data.y_test, scores, strict=True)],
+        }
     else:
         predicted = predictions.argmax(axis=1)
     labels = list(range(len(data.classes)))
@@ -227,6 +251,8 @@ def _register(job_id: str, model: keras.Model, data: PreparedData, evaluation: d
                 "label_encoder": data.label_encoder,
                 "input_columns": data.input_columns,
                 "target": job.target_column,
+                # Quien use el modelo debe predecir la clase positiva desde este umbral, no desde 0,5.
+                "threshold": job.params_json.get("threshold"),
             },
             folder / "preprocessor.pkl",
         )
@@ -369,11 +395,23 @@ def _run(job_id: str, worker_id: str) -> str:
                 job.result_json = {**job.result_json, "resources": {"cpuThreads": cpu.applied or total_cores(),
                                                                     "memoryLimitMb": limits.memory_mb, "gpus": gpus}}
                 db.commit()
+            weights = None
+            if params["task"] == "classification" and params.get("classWeight") == "balanced":
+                weights = _class_weights(data.y_train, len(data.classes))
+                shown = ", ".join(f"«{data.classes[c]}» ×{w:.2f}" for c, w in weights.items())
+                with SessionLocal() as db:
+                    job_events.log(db, job_id, f"Peso de clases balanceado: {shown}.")
+                    db.commit()
+            if params.get("threshold") is not None:
+                with SessionLocal() as db:
+                    job_events.log(db, job_id, f"Umbral de alerta: predice «{data.classes[1]}» desde "
+                                               f"{params['threshold']:.0%} de probabilidad.")
+                    db.commit()
             model.fit(
                 data.x_train, data.y_train,
                 validation_data=(data.x_val, data.y_val),
                 epochs=params["epochs"], batch_size=params["batchSize"],
-                callbacks=callbacks, verbose=0,
+                callbacks=callbacks, class_weight=weights, verbose=0,
             )
 
         if progress.stop_reason == "lost":
@@ -398,7 +436,7 @@ def _run(job_id: str, worker_id: str) -> str:
         stop_note = None
         if early is not None and early.stopped_epoch:
             stop_note = f"Parada temprana en la época {early.stopped_epoch + 1}."
-        _register(job_id, model, data, _evaluate(model, data, params["task"]), stop_note)
+        _register(job_id, model, data, _evaluate(model, data, params["task"], params.get("threshold")), stop_note)
         return sm.COMPLETED
 
     except JobLost:

@@ -102,6 +102,9 @@ def evaluation_run(db: Session, job: TrainingJob) -> dict | None:
         "history": history,
         "classes": [{"id": row["label"], "label": row["label"], "short": _short(row["label"])} for row in classes],
         "modelVersionId": model.id if model else None,
+        "classWeight": params.get("classWeight", "none"),
+        # Binaria: umbral entrenado, clase positiva y [real, probabilidad] por fila para explorar otros umbrales.
+        "binary": evaluation.get("binary"),
     }
 
 

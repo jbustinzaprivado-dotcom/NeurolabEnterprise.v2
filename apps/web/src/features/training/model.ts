@@ -37,6 +37,10 @@ export interface RunRecord {
   priority: QueuePriority;
   learningRate: number;
   seed: number;
+  /** Clasificación: peso de clases con que se entrenó. */
+  classWeight?: 'none' | 'balanced';
+  /** Binaria: umbral de la clase positiva; null si no aplica. */
+  threshold?: number | null;
   owner: string;
   /** Identificador del trabajo del que nace esta ejecución, si es un reintento. */
   retryOf?: string;
@@ -80,6 +84,10 @@ export interface LaunchValues {
   learningRate: string;
   seed: string;
   priority: QueuePriority;
+  /** Clasificación: «balanced» da más peso a la clase menos frecuente. */
+  classWeight: 'none' | 'balanced';
+  /** Clasificación binaria: probabilidad desde la que se predice la clase positiva (0,05–0,95). */
+  threshold: string;
 }
 
 export const EMPTY_LAUNCH: LaunchValues = {
@@ -93,6 +101,8 @@ export const EMPTY_LAUNCH: LaunchValues = {
   learningRate: '0,01',
   seed: '42',
   priority: 'NORMAL',
+  classWeight: 'none',
+  threshold: '0.5',
 };
 
 export const PRIORITY_LABEL: Record<QueuePriority, string> = {
@@ -357,6 +367,8 @@ interface TracedJob extends TrainingJob {
   seed?: number;
   retryOfId?: string | null;
   statusReason?: string | null;
+  classWeight?: 'none' | 'balanced';
+  threshold?: number | null;
 }
 
 /** Registro de un trabajo de la API: parámetros y motivo de cierre persistidos. */
@@ -369,6 +381,8 @@ export function apiRecord(job: TrainingJob): RunRecord {
     priority: traced.priority ?? 'NORMAL',
     learningRate: traced.learningRate ?? 0,
     seed: traced.seed ?? 0,
+    classWeight: traced.classWeight,
+    threshold: traced.threshold ?? null,
     owner: job.owner,
     retryOf: traced.retryOfId ?? undefined,
     motivo: traced.statusReason ?? undefined,

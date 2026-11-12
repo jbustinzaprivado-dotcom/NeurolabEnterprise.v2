@@ -27,6 +27,10 @@ class TrainingJobIn(CamelModel):
     early_stopping_patience: int | None = Field(default=None, ge=1, le=100)
     seed: int = Field(default=42, ge=0, le=2**31 - 1)
     priority: Priority = "NORMAL"
+    # Clasificación: «balanced» da más peso a la clase menos frecuente (p. ej. los clientes que sí se van).
+    class_weight: Literal["none", "balanced"] = "none"
+    # Clasificación binaria: probabilidad mínima para predecir la clase positiva (la segunda).
+    threshold: float = Field(default=0.5, ge=0.05, le=0.95)
 
 
 class PriorityIn(CamelModel):
@@ -98,6 +102,8 @@ class TrainingJobOut(CamelModel):
     code_version: str
     model_version_id: str | None
     error_detail: str | None = None
+    class_weight: Literal["none", "balanced"] = "none"
+    threshold: float | None = None
 
 
 class EpochPoint(CamelModel):

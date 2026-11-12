@@ -132,6 +132,9 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
   const architecture = project?.architectures.find((item) => item.id === values.architecture) ?? null;
   const dataset = project?.datasets.find((item) => item.id === values.dataset) ?? null;
   const target = dataset?.columns.find((column) => column.name === values.targetColumn);
+  // Misma regla que la API: decimal o entero con muchos valores es regresión; lo demás, clasificación.
+  const classification = Boolean(target) && !(target!.kind === 'float' || (target!.kind === 'integer' && target!.unique > 50));
+  const binary = classification && target!.unique === 2;
   const issues = useMemo(() => validateLaunch(values, actor, limits), [values, actor, limits]);
   const optimizer = OPTIMIZERS.find((item) => item.id === values.optimizer);
   const ceiling = maxPriorityFor(values.projectId ? actorFor(values.projectId) : actor);
@@ -464,6 +467,47 @@ export function LaunchPanel({ actor, actorFor, projects, limits, values, busy = 
           </div>
         </fieldset>
 
+        {classification ? (
+          <fieldset className="tr-form__section">
+            <legend>Clases desbalanceadas</legend>
+            <div className="tr-form__grid">
+              <Field
+                id="tr-class-weight"
+                label="Peso de las clases"
+                hint="Balanceado da más peso a la clase menos frecuente: la red deja de ignorarla, a cambio de más falsas alarmas."
+              >
+                <select
+                  id="tr-class-weight"
+                  className="tr-input"
+                  value={values.classWeight}
+                  onChange={(event) => onChange({ classWeight: event.target.value as LaunchValues['classWeight'] })}
+                >
+                  <option value="none">Igual para todas</option>
+                  <option value="balanced">Balanceado</option>
+                </select>
+              </Field>
+              {binary ? (
+                <Field
+                  id="tr-threshold"
+                  label={`Umbral de alerta: ${Math.round(Number(values.threshold) * 100)} %`}
+                  hint="Probabilidad desde la que se predice la clase positiva (la segunda en orden alfabético, p. ej. «si» frente a «no»). Más bajo detecta más casos y da más falsas alarmas; en M07 se prueba otro sin reentrenar."
+                >
+                  <input
+                    id="tr-threshold"
+                    className="tr-range"
+                    type="range"
+                    min={0.05}
+                    max={0.95}
+                    step={0.05}
+                    value={values.threshold}
+                    onChange={(event) => onChange({ threshold: event.target.value })}
+                  />
+                </Field>
+              ) : null}
+            </div>
+          </fieldset>
+        ) : null}
+
         <div className="tr-forecast">
           <p className="u-caps">Estimación de recursos</p>
           {preview ? (
@@ -529,5 +573,7 @@ function onChangeReset(onChange: (patch: Partial<LaunchValues>) => void) {
     learningRate: EMPTY_LAUNCH.learningRate,
     seed: EMPTY_LAUNCH.seed,
     priority: EMPTY_LAUNCH.priority,
+    classWeight: EMPTY_LAUNCH.classWeight,
+    threshold: EMPTY_LAUNCH.threshold,
   });
 }

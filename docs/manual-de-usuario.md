@@ -114,7 +114,10 @@ Si el número de columnas no cuadra con la entrada de la arquitectura, M06 lo av
 1. Elige el proyecto, la **arquitectura** (de M04), el **dataset** (de M05) y la **columna objetivo**. La tarea (clasificación o regresión) se deduce de la columna.
 2. Ajusta las **épocas**, el **tamaño de lote**, el **optimizador** (Adam, AdamW, RMSprop o SGD), la **tasa de aprendizaje** y la **semilla**. La misma semilla reproduce la misma curva.
 3. Elige la **prioridad** en la cola: crítica, alta, normal o baja, según lo que permita tu rol.
-4. **Encolar ejecución.** El trabajo queda **En cola** y el worker lo atiende por prioridad y antigüedad.
+4. En clasificación aparece **Clases desbalanceadas**:
+   - **Peso de las clases:** *Balanceado* da más peso a la clase menos frecuente. Sirve cuando una respuesta es rara (pocos clientes que se van, pocos fraudes): la red deja de ignorarla, a cambio de más falsas alarmas.
+   - **Umbral de alerta** (solo con dos clases): probabilidad desde la que se predice la clase positiva, que es la segunda en orden alfabético (por ejemplo, «si» frente a «no»). Por defecto, 50 %.
+5. **Encolar ejecución.** El trabajo queda **En cola** y el worker lo atiende por prioridad y antigüedad. La estimación de tiempo usa la duración real de entrenamientos anteriores de la misma arquitectura o familia, e indica de dónde sale.
 
 **Seguir el avance:** el detalle muestra el estado (*En cola → Preparando → Ejecutando → Completado / Fallido / Cancelado*), la barra de progreso, la época actual, las curvas y los logs del worker en vivo. Si pierdes la conexión, la pantalla recupera lo que faltaba al reconectar.
 
@@ -144,6 +147,7 @@ En ambos casos:
 - Las curvas separan entrenamiento (línea continua) y validación (discontinua), y se pueden superponer dos ejecuciones.
 - La **comparación de ejecuciones** incluye solo las de la misma tarea: accuracy y R² no se miden en la misma escala.
 - **Registrar observación:** deja constancia de limitaciones, observaciones o riesgos antes de aprobar una versión. Los revisores las marcan como revisadas.
+- **Umbral de alerta** (clasificación binaria): un control sobre la matriz permite probar otro umbral **sin reentrenar**. Reclasifica las probabilidades guardadas de cada fila de prueba y muestra cuántos casos positivos detecta, cuántas falsas alarmas da y qué tan seguido acierta al avisar. La matriz, el F1 y las métricas por clase siguen al umbral elegido; la versión registrada conserva el umbral con que se entrenó, y el modelo descargado lo lleva en `preprocessor.pkl`.
 
 La partición de prueba nunca interviene en el entrenamiento.
 

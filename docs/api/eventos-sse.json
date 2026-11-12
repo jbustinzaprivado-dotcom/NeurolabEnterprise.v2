@@ -250,6 +250,27 @@
           ],
           "default": null,
           "title": "Errordetail"
+        },
+        "classWeight": {
+          "default": "none",
+          "enum": [
+            "none",
+            "balanced"
+          ],
+          "title": "Classweight",
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Threshold"
         }
       },
       "required": [

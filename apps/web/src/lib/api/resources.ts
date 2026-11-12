@@ -281,6 +281,8 @@ export interface LaunchPayload {
   learningRate: number;
   seed: number;
   priority: Priority;
+  classWeight?: 'none' | 'balanced';
+  threshold?: number;
 }
 
 export interface ApiJobEvent {

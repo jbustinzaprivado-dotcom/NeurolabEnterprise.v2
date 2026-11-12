@@ -4381,6 +4381,22 @@
             ],
             "title": "Priority",
             "default": "NORMAL"
+          },
+          "classWeight": {
+            "type": "string",
+            "enum": [
+              "none",
+              "balanced"
+            ],
+            "title": "Classweight",
+            "default": "none"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 0.95,
+            "minimum": 0.05,
+            "title": "Threshold",
+            "default": 0.5
           }
         },
         "type": "object",
@@ -4635,6 +4651,26 @@
               }
             ],
             "title": "Errordetail"
+          },
+          "classWeight": {
+            "type": "string",
+            "enum": [
+              "none",
+              "balanced"
+            ],
+            "title": "Classweight",
+            "default": "none"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
           }
         },
         "type": "object",

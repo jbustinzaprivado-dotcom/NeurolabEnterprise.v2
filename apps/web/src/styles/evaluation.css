@@ -1023,6 +1023,83 @@
   color: var(--text-secondary);
 }
 
+/* --- Explorador del umbral de alerta (clasificación binaria) -------------------- */
+
+.ev-threshold {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--c-indigo-100);
+  border-radius: var(--radius-md);
+  background: var(--brand-soft);
+}
+
+.ev-threshold__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+}
+
+.ev-threshold__tag {
+  font-size: var(--fs-2xs);
+  color: var(--text-tertiary);
+}
+
+.ev-threshold input[type='range'] {
+  width: 100%;
+  accent-color: var(--brand);
+}
+
+.ev-threshold__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.ev-threshold__stats div {
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.ev-threshold__stats dt {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ev-threshold__stats dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ev-threshold__stats small {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.ev-threshold__note {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .ev-threshold__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
   .ev-entry {
     padding: var(--sp-3);
